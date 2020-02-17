@@ -7,5 +7,4 @@ RUN bundle install
 
 COPY . .
 
-RUN cat /etc/debian_version
 CMD bundle exec rspec
