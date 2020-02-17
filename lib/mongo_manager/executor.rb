@@ -27,8 +27,8 @@ module MongoManager
     end
 
     def mongo_path(binary)
-      if options[:binarypath]
-        File.join(options[:binarypath], binary)
+      if options[:bin_dir]
+        File.join(options[:bin_dir], binary)
       else
         binary
       end

@@ -35,7 +35,7 @@ module MongoManager
     def init
       options = {}
       parser = OptionParser.new do |opts|
-        opts.on('--binarypath DIR', String, 'Path to mongod/mongos binaries')
+        opts.on('--bin-dir DIR', String, 'Path to mongod/mongos binaries')
       end.order!(into: options)
 
       unless ARGV.empty?
