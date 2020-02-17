@@ -15,7 +15,11 @@ module MongoManager
 
     def init
       FileUtils.mkdir_p(root_dir)
-      spawn(mongo_path('mongod'), '--dbpath', root_dir.to_s)
+      spawn(mongo_path('mongod'),
+        '--dbpath', root_dir.to_s,
+        '--fork',
+        '--logpath', root_dir.join('mongod.log').to_s,
+      )
     end
 
     def root_dir
