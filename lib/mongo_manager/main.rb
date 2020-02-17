@@ -2,13 +2,17 @@ require 'optparse'
 
 module MongoManager
   class Main
+    def initialize
+      @global_options = {}
+    end
+
+    attr_reader :global_options
 
     def run
-      params = {}
       parser = OptionParser.new do |opts|
-        opts.on('--dir DIR', String)
-      end.order!(into: params)
-      p params
+        opts.on('--dir DIR', String, 'Path to deployment')
+      end.order!(into: global_options)
+      p global_options
       p ARGV
     end
 
