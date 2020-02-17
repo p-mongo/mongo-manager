@@ -33,7 +33,16 @@ module MongoManager
     end
 
     def init
-      Executor.new(**global_options).init
+      options = {}
+      parser = OptionParser.new do |opts|
+        opts.on('--binarypath DIR', String, 'Path to mongod/mongos binaries')
+      end.order!(into: options)
+
+      unless ARGV.empty?
+        usage("bogus arguments: #{ARGV.join(' ')}")
+      end
+
+      Executor.new(**global_options.merge(options)).init
     end
 
     class << self
