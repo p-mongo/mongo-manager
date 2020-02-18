@@ -12,7 +12,7 @@ or [here](https://docs.mongodb.com/guides/server/auth/)
 and [replSetInitiate reference](https://docs.mongodb.com/manual/reference/command/replSetInitiate/#dbcmd.replSetInitiate)
 - [Auth in a replica set](https://docs.mongodb.com/manual/tutorial/deploy-replica-set-with-keyfile-access-control/)
 - [Deploy a sharded cluster](https://docs.mongodb.com/manual/tutorial/deploy-shard-cluster/)
-- [Auth in a sharded cluster)[https://docs.mongodb.com/manual/tutorial/deploy-sharded-cluster-with-keyfile-access-control/)
+- [Auth in a sharded cluster](https://docs.mongodb.com/manual/tutorial/deploy-sharded-cluster-with-keyfile-access-control/)
 
 ## License
 
