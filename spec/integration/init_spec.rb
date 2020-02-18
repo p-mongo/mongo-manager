@@ -20,7 +20,7 @@ describe 'init' do
   context 'single' do
     let(:options) do
       {
-        dir: '/tmp/db',
+        dir: '/db',
       }
     end
 
@@ -47,7 +47,7 @@ describe 'init' do
   context 'replica set' do
     let(:options) do
       {
-        dir: '/tmp/db',
+        dir: '/db',
         replica_set: 'foo',
       }
     end
