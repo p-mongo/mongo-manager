@@ -47,6 +47,18 @@ module MongoManager
 
       pids.each do |db_dir, pid|
         puts("Waiting for pid #{pid} for #{db_dir} to exit")
+        # When we run the tests, the rspec process is the parent of launched
+        # mongod/mongos processes, and must reap the children in order for
+        # the processes to fully die.
+        Thread.new do
+          begin
+            Process.wait(pid)
+          rescue Errno::ECHLD
+            # Process we are waiting for was launched by another process
+            # (i.e. an earlier invocation of mongo-manager, not the rspec
+            # process; ignore)
+          end
+        end
         deadline = Time.now + 10
         loop do
           begin
