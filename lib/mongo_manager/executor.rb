@@ -247,11 +247,16 @@ module MongoManager
 
       write_config
 
+      client = Mongo::Client.new(['localhost:27017'], database: 'admin')
+      client.database.command(
+        addShard: "shard1/localhost:27019",
+      )
+
       if options[:username]
-        client = Mongo::Client.new(['localhost:27017'])
         create_user(client)
-        client.close
       end
+
+      client.close
     end
 
     def initiate_replica_set(hosts, replica_set_name, **opts)

@@ -44,8 +44,12 @@ describe 'init' do
     # Assert topology is as expected
     client.cluster.topology.class.name.should =~ expected_topology
 
-    # Ensure deployment is writable
-    client['foo'].insert_one(test: 1)
+    # Ensure deployment is writable - admin db
+    client.use('admin')['foo'].insert_one(test: 1)
+
+    # In a sharded cluster admin db is writable even when no shards are defined,
+    # use a non-admin db to catch the condition of no shards being defined
+    client.use('test')['foo'].insert_one(test: 1)
 
     client.close
   end
