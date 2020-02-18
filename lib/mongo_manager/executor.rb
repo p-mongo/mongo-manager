@@ -42,8 +42,28 @@ module MongoManager
           '--dbpath', dir.to_s,
           '--fork',
           '--port', port.to_s,
+          '--replSet', options[:replica_set],
         )
       end
+
+      client = Mongo::Client.new(['localhost:27017'], connect: :direct)
+
+      rs_config = {
+        _id: options[:replica_set],
+        members: [
+          { _id: 0, host: 'localhost:27017' },
+          { _id: 1, host: 'localhost:27018' },
+          { _id: 2, host: 'localhost:27019' },
+        ],
+      }
+
+      puts("Initiating replica set")
+      client.database.command(replSetInitiate: rs_config)
+      client.close
+
+      puts("Waiting for replica set to initialize")
+      client = Mongo::Client.new(['localhost:27017'], replica_set: options[:replica_set])
+      client.database.command(ping: 1)
     end
 
     def root_dir
