@@ -13,6 +13,7 @@ and [replSetInitiate reference](https://docs.mongodb.com/manual/reference/comman
 - [Auth in a replica set](https://docs.mongodb.com/manual/tutorial/deploy-replica-set-with-keyfile-access-control/)
 - [Deploy a sharded cluster](https://docs.mongodb.com/manual/tutorial/deploy-shard-cluster/)
 - [Auth in a sharded cluster](https://docs.mongodb.com/manual/tutorial/deploy-sharded-cluster-with-keyfile-access-control/)
+- [Ruby driver logging](https://docs.mongodb.com/ruby-driver/current/tutorials/ruby-driver-create-client/#logging)
 
 ## License
 
