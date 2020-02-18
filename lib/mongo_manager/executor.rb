@@ -20,12 +20,20 @@ module MongoManager
 
     def init
       FileUtils.mkdir_p(root_dir)
-      write_config
+      create_config
 
       if options[:replica_set]
         init_rs
       else
         init_single
+      end
+    end
+
+    def start
+      read_config
+      config[:db_dirs].each do |db_dir|
+        cmd = config[:settings][db_dir][:start_cmd]
+        spawn_mongo(*cmd)
       end
     end
 
@@ -83,7 +91,7 @@ module MongoManager
 
     private
 
-    def write_config
+    def create_config
       if options[:replica_set]
         @config = {
           db_dirs: 1.upto(options[:nodes] || 3).map do |i|
@@ -95,6 +103,10 @@ module MongoManager
           db_dirs: [root_dir.to_s],
         }
       end
+      write_config
+    end
+
+    def write_config
       File.open(root_dir.join('mongo-manager.yml'), 'w') do |f|
         f << YAML.dump(config)
       end
@@ -113,11 +125,7 @@ module MongoManager
 
       if options[:username]
         client = Mongo::Client.new(['localhost:27017'], connect: :direct, database: 'admin')
-        client.database.users.create(
-          options[:username],
-          password: options[:password],
-          roles: %w(root),
-        )
+        create_user(client)
         client.close
 
         stop
@@ -132,20 +140,38 @@ module MongoManager
     end
 
     def init_rs
+      args = []
+
+      if options[:username]
+        key_file_path = root_dir.join('.key')
+        File.open(key_file_path, 'w') do |f|
+          f << Base64.encode64(OpenSSL::Random.random_bytes(756))
+        end
+        FileUtils.chmod(0600, key_file_path)
+        args += ['--keyFile', key_file_path.to_s]
+      end
+
       1.upto(options[:nodes] || 3) do |i|
         port = 27016 + i
 
         puts("Spawn mongod on port #{port}")
         dir = root_dir.join("rs#{i}")
         FileUtils.mkdir(dir)
-        spawn_mongo('mongod',
+        cmd = [
+          'mongod',
           dir.join('mongod.log').to_s,
           dir.join('mongod.pid').to_s,
           '--dbpath', dir.to_s,
           '--port', port.to_s,
           '--replSet', options[:replica_set],
-        )
+        ] + args
+        spawn_mongo(*cmd)
+        config[:settings] ||= {}
+        config[:settings][dir.to_s] ||= {}
+        config[:settings][dir.to_s][:start_cmd] = cmd
       end
+
+      write_config
 
       client = Mongo::Client.new(['localhost:27017'], connect: :direct)
 
@@ -163,9 +189,32 @@ module MongoManager
       client.close
 
       puts("Waiting for replica set to initialize")
-      client = Mongo::Client.new(['localhost:27017'], replica_set: options[:replica_set])
+      client = Mongo::Client.new(['localhost:27017'], replica_set: options[:replica_set], database: 'admin')
       client.database.command(ping: 1)
+
+      if options[:username]
+        create_user(client)
+        client.close
+
+        stop
+        start
+
+        client = Mongo::Client.new(['localhost:27017'],
+          replica_set: options[:replica_set], database: 'admin',
+          user: options[:username], password: options[:password],
+        )
+        client.database.command(ping: 1)
+      end
+
       client.close
+    end
+
+    def create_user(client)
+      client.database.users.create(
+        options[:username],
+        password: options[:password],
+        roles: %w(root),
+      )
     end
 
     def root_dir

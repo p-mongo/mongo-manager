@@ -92,5 +92,26 @@ describe 'init' do
     end
 
     it_behaves_like 'starts and stops'
+
+    context 'with auth' do
+      let(:client_options) do
+        base_client_options.merge(
+          user: 'hello', password: 'word', replica_set: 'foo',
+        )
+      end
+
+      let(:dir) { '/db/rs-auth' }
+
+      let(:options) do
+        {
+          dir: dir,
+          username: 'hello',
+          password: 'word',
+          replica_set: 'foo',
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+    end
   end
 end
