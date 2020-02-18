@@ -139,17 +139,17 @@ describe 'init' do
       let(:client_options) do
         base_client_options.merge(
           user: 'hello', password: 'word',
-          sharded: 1,
         )
       end
 
-      let(:dir) { '/db/rs-auth' }
+      let(:dir) { '/db/shard-auth' }
 
       let(:options) do
         {
           dir: dir,
           username: 'hello',
           password: 'word',
+          sharded: 1,
         }
       end
 

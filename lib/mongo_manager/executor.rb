@@ -16,11 +16,14 @@ module MongoManager
 
       @client_log_level = :warn
       Mongo::Logger.level = client_log_level
+
+      @common_args = []
     end
 
     attr_reader :options
     attr_reader :config
     attr_reader :client_log_level
+    attr_reader :common_args
 
     def init
       FileUtils.mkdir_p(root_dir)
@@ -31,7 +34,7 @@ module MongoManager
       elsif options[:replica_set]
         init_rs
       else
-        init_single
+        init_standalone
       end
     end
 
@@ -140,7 +143,7 @@ module MongoManager
       @config = YAML.load(File.read(File.join(root_dir, 'mongo-manager.yml')))
     end
 
-    def init_single
+    def init_standalone
       cmd = [
         'mongod',
         root_dir.join('mongod.log').to_s,
@@ -169,22 +172,13 @@ module MongoManager
     end
 
     def init_rs
-      args = []
-
-      if options[:username]
-        key_file_path = root_dir.join('.key')
-        File.open(key_file_path, 'w') do |f|
-          f << Base64.encode64(OpenSSL::Random.random_bytes(756))
-        end
-        FileUtils.chmod(0600, key_file_path)
-        args += ['--keyFile', key_file_path.to_s]
-      end
+      maybe_create_key
 
       1.upto(options[:nodes] || 3) do |i|
         port = 27016 + i
         dir = root_dir.join("rs#{i}")
 
-        spawn_rs_node(dir, port, options[:replica_set], args)
+        spawn_rs_node(dir, port, options[:replica_set], common_args)
       end
 
       write_config
@@ -217,11 +211,13 @@ module MongoManager
     end
 
     def init_sharded
+      maybe_create_key
+
       spawn_rs_node(
         root_dir.join('csrs'),
         27018,
         'csrs',
-        %w(--configsvr),
+        common_args + %w(--configsvr),
       )
 
       initiate_replica_set(%w(localhost:27018), 'csrs', configsvr: true)
@@ -230,7 +226,7 @@ module MongoManager
         root_dir.join('shard1'),
         27019,
         'shard1',
-        %w(--shardsvr),
+        common_args + %w(--shardsvr),
       )
 
       initiate_replica_set(%w(localhost:27019), 'shard1')
@@ -245,11 +241,17 @@ module MongoManager
         dir.join('mongos.pid').to_s,
         '--port', port.to_s,
         '--configdb', "csrs/localhost:27018",
-      ]
+      ] + common_args
       spawn_mongo(*cmd)
       record_start_command(dir, cmd)
 
       write_config
+
+      if options[:username]
+        client = Mongo::Client.new(['localhost:27017'])
+        create_user(client)
+        client.close
+      end
     end
 
     def initiate_replica_set(hosts, replica_set_name, **opts)
@@ -269,6 +271,17 @@ module MongoManager
         client.database.command(replSetInitiate: rs_config)
       ensure
         client.close
+      end
+    end
+
+    def maybe_create_key
+      if options[:username]
+        key_file_path = root_dir.join('.key')
+        File.open(key_file_path, 'w') do |f|
+          f << Base64.encode64(OpenSSL::Random.random_bytes(756))
+        end
+        FileUtils.chmod(0600, key_file_path)
+        @common_args += ['--keyFile', key_file_path.to_s]
       end
     end
 
