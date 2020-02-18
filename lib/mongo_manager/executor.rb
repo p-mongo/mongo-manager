@@ -153,40 +153,17 @@ module MongoManager
 
       1.upto(options[:nodes] || 3) do |i|
         port = 27016 + i
-
-        puts("Spawn mongod on port #{port}")
         dir = root_dir.join("rs#{i}")
-        FileUtils.mkdir(dir)
-        cmd = [
-          'mongod',
-          dir.join('mongod.log').to_s,
-          dir.join('mongod.pid').to_s,
-          '--dbpath', dir.to_s,
-          '--port', port.to_s,
-          '--replSet', options[:replica_set],
-        ] + args
-        spawn_mongo(*cmd)
-        config[:settings] ||= {}
-        config[:settings][dir.to_s] ||= {}
-        config[:settings][dir.to_s][:start_cmd] = cmd
+
+        spawn_rs_node(dir, port, options[:replica_set], args)
       end
 
       write_config
 
-      client = Mongo::Client.new(['localhost:27017'], connect: :direct)
-
-      rs_config = {
-        _id: options[:replica_set],
-        members: [
-          { _id: 0, host: 'localhost:27017' },
-          { _id: 1, host: 'localhost:27018' },
-          { _id: 2, host: 'localhost:27019' },
-        ],
-      }
-
-      puts("Initiating replica set")
-      client.database.command(replSetInitiate: rs_config)
-      client.close
+      initiate_replica_set(
+        %w(localhost:27017 localhost:27018 localhost:27019),
+        options[:replica_set],
+      )
 
       puts("Waiting for replica set to initialize")
       client = Mongo::Client.new(['localhost:27017'], replica_set: options[:replica_set], database: 'admin')
@@ -207,6 +184,26 @@ module MongoManager
       end
 
       client.close
+    end
+
+    def initiate_replica_set(hosts, replica_set_name)
+      members = []
+      hosts.each_with_index do |host, index|
+        members << { _id: index, host: host }
+      end
+
+      rs_config = {
+        _id: replica_set_name,
+        members: members,
+      }
+
+      puts("Initiating replica set #{replica_set_name}/#{hosts.join(',')}")
+      client = Mongo::Client.new([hosts.first], connect: :direct)
+      begin
+        client.database.command(replSetInitiate: rs_config)
+      ensure
+        client.close
+      end
     end
 
     def create_user(client)
@@ -274,6 +271,23 @@ module MongoManager
         end
         raise SpawnError, "#{e}; #{extra}"
       end
+    end
+
+    def spawn_rs_node(dir, port, replica_set_name, args)
+      puts("Spawn mongod on port #{port}")
+      FileUtils.mkdir(dir)
+      cmd = [
+        'mongod',
+        dir.join('mongod.log').to_s,
+        dir.join('mongod.pid').to_s,
+        '--dbpath', dir.to_s,
+        '--port', port.to_s,
+        '--replSet', replica_set_name,
+      ] + args
+      spawn_mongo(*cmd)
+      config[:settings] ||= {}
+      config[:settings][dir.to_s] ||= {}
+      config[:settings][dir.to_s][:start_cmd] = cmd
     end
   end
 end
