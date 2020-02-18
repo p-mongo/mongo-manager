@@ -13,10 +13,14 @@ module MongoManager
       if options[:username] && !options[:password]
         raise ArgumentError, ':username and :password must be given together'
       end
+
+      @client_log_level = :warn
+      Mongo::Logger.level = client_log_level
     end
 
     attr_reader :options
     attr_reader :config
+    attr_reader :client_log_level
 
     def init
       FileUtils.mkdir_p(root_dir)
@@ -124,7 +128,9 @@ module MongoManager
       )
 
       if options[:username]
-        client = Mongo::Client.new(['localhost:27017'], connect: :direct, database: 'admin')
+        client = Mongo::Client.new(['localhost:27017'],
+          connect: :direct,
+          database: 'admin')
         create_user(client)
         client.close
 
@@ -166,7 +172,8 @@ module MongoManager
       )
 
       puts("Waiting for replica set to initialize")
-      client = Mongo::Client.new(['localhost:27017'], replica_set: options[:replica_set], database: 'admin')
+      client = Mongo::Client.new(['localhost:27017'],
+        replica_set: options[:replica_set], database: 'admin')
       client.database.command(ping: 1)
 
       if options[:username]
