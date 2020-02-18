@@ -27,4 +27,20 @@ describe 'init' do
       client.cluster.topology.class.name.should =~ /Single/
     end
   end
+
+  context 'replica set' do
+    let(:options) do
+      {
+        dir: '/tmp/db',
+        replica_set: 'foo',
+      }
+    end
+
+    it 'starts' do
+      executor.init
+
+      client.database.command(ping: 1)
+      client.cluster.topology.class.name.should =~ /ReplicaSet/
+    end
+  end
 end
