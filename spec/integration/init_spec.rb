@@ -13,6 +13,10 @@ describe 'init' do
     Mongo::Client.new(['localhost:27017'], client_options)
   end
 
+  after do
+    executor.stop rescue nil
+  end
+
   context 'single' do
     let(:options) do
       {
@@ -20,11 +24,21 @@ describe 'init' do
       }
     end
 
-    it 'starts' do
+    let(:init_and_check) do
       executor.init
 
       client.database.command(ping: 1)
       client.cluster.topology.class.name.should =~ /Single/
+      client.close
+    end
+
+    it 'starts' do
+      init_and_check
+    end
+
+    it 'stops' do
+      init_and_check
+      executor.stop
     end
   end
 
@@ -41,6 +55,7 @@ describe 'init' do
 
       client.database.command(ping: 1)
       client.cluster.topology.class.name.should =~ /ReplicaSet/
+      client.close
     end
   end
 end

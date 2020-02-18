@@ -4,4 +4,7 @@ module MongoManager
 
   class SpawnError < Error
   end
+
+  class StopError < Error
+  end
 end
