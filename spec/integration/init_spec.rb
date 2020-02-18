@@ -114,4 +114,46 @@ describe 'init' do
       it_behaves_like 'starts and stops'
     end
   end
+
+  context 'sharded' do
+    let(:dir) { '/db/shard' }
+
+    let(:options) do
+      {
+        dir: dir,
+        sharded: 1,
+      }
+    end
+
+    let(:init_and_check) do
+      executor.init
+
+      client.database.command(ping: 1)
+      client.cluster.topology.class.name.should =~ /Sharded/
+      client.close
+    end
+
+    it_behaves_like 'starts and stops'
+
+    context 'with auth' do
+      let(:client_options) do
+        base_client_options.merge(
+          user: 'hello', password: 'word',
+          sharded: 1,
+        )
+      end
+
+      let(:dir) { '/db/rs-auth' }
+
+      let(:options) do
+        {
+          dir: dir,
+          username: 'hello',
+          password: 'word',
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+    end
+  end
 end

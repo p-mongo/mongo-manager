@@ -26,7 +26,9 @@ module MongoManager
       FileUtils.mkdir_p(root_dir)
       create_config
 
-      if options[:replica_set]
+      if options[:sharded]
+        init_sharded
+      elsif options[:replica_set]
         init_rs
       else
         init_single
@@ -47,7 +49,8 @@ module MongoManager
       pids = {}
 
       config[:db_dirs].each do |db_dir|
-        pid_file_path = File.join(db_dir, 'mongod.pid')
+        binary_basename = File.basename(config[:settings][db_dir][:start_cmd].first)
+        pid_file_path = File.join(db_dir, "#{binary_basename}.pid")
         if File.exist?(pid_file_path)
           pid = File.read(pid_file_path).strip.to_i
           puts("Sending TERM to pid #{pid} for #{db_dir}")
@@ -96,7 +99,15 @@ module MongoManager
     private
 
     def create_config
-      if options[:replica_set]
+      if options[:sharded]
+        @config = {
+          db_dirs: [
+            root_dir.join('csrs').to_s,
+            root_dir.join('shard1').to_s,
+            root_dir.join('s1').to_s,
+          ],
+        }
+      elsif options[:replica_set]
         @config = {
           db_dirs: 1.upto(options[:nodes] || 3).map do |i|
             root_dir.join("rs#{i}").to_s
@@ -193,7 +204,43 @@ module MongoManager
       client.close
     end
 
-    def initiate_replica_set(hosts, replica_set_name)
+    def init_sharded
+      spawn_rs_node(
+        root_dir.join('csrs'),
+        27018,
+        'csrs',
+        %w(--configsvr),
+      )
+
+      initiate_replica_set(%w(localhost:27018), 'csrs', configsvr: true)
+
+      spawn_rs_node(
+        root_dir.join('shard1'),
+        27019,
+        'shard1',
+        %w(--shardsvr),
+      )
+
+      initiate_replica_set(%w(localhost:27019), 'shard1')
+
+      port = 27017
+      dir = root_dir.join('s1')
+      puts("Spawn mongos on port #{port}")
+      FileUtils.mkdir(dir)
+      cmd = [
+        'mongos',
+        dir.join('mongos.log').to_s,
+        dir.join('mongos.pid').to_s,
+        '--port', port.to_s,
+        '--configdb', "csrs/localhost:27018",
+      ]
+      spawn_mongo(*cmd)
+      record_start_command(dir, cmd)
+
+      write_config
+    end
+
+    def initiate_replica_set(hosts, replica_set_name, **opts)
       members = []
       hosts.each_with_index do |host, index|
         members << { _id: index, host: host }
@@ -202,7 +249,7 @@ module MongoManager
       rs_config = {
         _id: replica_set_name,
         members: members,
-      }
+      }.update(opts)
 
       puts("Initiating replica set #{replica_set_name}/#{hosts.join(',')}")
       client = Mongo::Client.new([hosts.first], connect: :direct)
@@ -292,6 +339,10 @@ module MongoManager
         '--replSet', replica_set_name,
       ] + args
       spawn_mongo(*cmd)
+      record_start_command(dir, cmd)
+    end
+
+    def record_start_command(dir, cmd)
       config[:settings] ||= {}
       config[:settings][dir.to_s] ||= {}
       config[:settings][dir.to_s][:start_cmd] = cmd
