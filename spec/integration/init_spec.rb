@@ -35,8 +35,8 @@ describe 'init' do
     end
   end
 
-  context 'single' do
-    let(:dir) { '/db/single' }
+  context 'standalone' do
+    let(:dir) { '/db/standalone' }
 
     let(:options) do
       {
@@ -59,7 +59,7 @@ describe 'init' do
         base_client_options.merge(user: 'hello', password: 'word')
       end
 
-      let(:dir) { '/db/single-auth' }
+      let(:dir) { '/db/standalone-auth' }
 
       let(:options) do
         {

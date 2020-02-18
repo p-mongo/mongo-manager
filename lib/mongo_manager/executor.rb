@@ -37,6 +37,11 @@ module MongoManager
 
     def start
       read_config
+
+      do_start
+    end
+
+    private def do_start
       config[:db_dirs].each do |db_dir|
         cmd = config[:settings][db_dir][:start_cmd]
         spawn_mongo(*cmd)
@@ -46,6 +51,10 @@ module MongoManager
     def stop
       read_config
 
+      do_stop
+    end
+
+    private def do_stop
       pids = {}
 
       config[:db_dirs].each do |db_dir|
@@ -132,11 +141,14 @@ module MongoManager
     end
 
     def init_single
-      spawn_mongo('mongod',
+      cmd = [
+        'mongod',
         root_dir.join('mongod.log').to_s,
         root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
-      )
+      ]
+      spawn_mongo(*cmd)
+      record_start_command(root_dir, cmd)
 
       if options[:username]
         client = Mongo::Client.new(['localhost:27017'],
@@ -145,15 +157,15 @@ module MongoManager
         create_user(client)
         client.close
 
-        stop
+        do_stop
 
-        spawn_mongo('mongod',
-          root_dir.join('mongod.log').to_s,
-          root_dir.join('mongod.pid').to_s,
-          '--dbpath', root_dir.to_s,
-          '--auth',
-        )
+        cmd << '--auth'
+
+        spawn_mongo(*cmd)
       end
+
+      record_start_command(root_dir, cmd)
+      write_config
     end
 
     def init_rs
