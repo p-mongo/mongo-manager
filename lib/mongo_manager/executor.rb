@@ -9,6 +9,10 @@ module MongoManager
       unless options[:dir]
         raise ArgumentError, ':dir option must be given'
       end
+
+      if options[:username] && !options[:password]
+        raise ArgumentError, ':username and :password must be given together'
+      end
     end
 
     attr_reader :options
@@ -104,6 +108,25 @@ module MongoManager
         root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
       )
+
+      if options[:username]
+        client = Mongo::Client.new(['localhost:27017'], connect: :direct, database: 'admin')
+        client.database.users.create(
+          options[:username],
+          password: options[:password],
+          roles: %w(root),
+        )
+        client.close
+
+        stop
+
+        spawn_mongo('mongod',
+          root_dir.join('mongod.log').to_s,
+          root_dir.join('mongod.pid').to_s,
+          '--dbpath', root_dir.to_s,
+          '--auth',
+        )
+      end
     end
 
     def init_rs

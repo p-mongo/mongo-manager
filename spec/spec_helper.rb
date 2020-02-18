@@ -1,4 +1,5 @@
 require 'rspec/expectations'
+require 'fileutils'
 
 require 'mongo_manager'
 

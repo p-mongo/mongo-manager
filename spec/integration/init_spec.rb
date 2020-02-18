@@ -5,8 +5,12 @@ describe 'init' do
     MongoManager::Executor.new(options)
   end
 
-  let(:client_options) do
+  let(:base_client_options) do
     {server_selection_timeout: 5}
+  end
+
+  let(:client_options) do
+    base_client_options
   end
 
   let(:client) do
@@ -15,12 +19,15 @@ describe 'init' do
 
   after do
     executor.stop rescue nil
+    FileUtils.rm_rf(dir)
   end
 
   context 'single' do
+    let(:dir) { '/db/single' }
+
     let(:options) do
       {
-        dir: '/db/single',
+        dir: dir,
       }
     end
 
@@ -32,22 +39,46 @@ describe 'init' do
       client.close
     end
 
-    it 'starts' do
-      init_and_check
+    shared_examples_for 'starts and stops' do
+      it 'starts' do
+        init_and_check
+      end
+
+      it 'stops' do
+        init_and_check
+        Ps.mongod.should_not be_empty
+        executor.stop
+        Ps.mongod.should be_empty
+      end
     end
 
-    it 'stops' do
-      init_and_check
-      Ps.mongod.should_not be_empty
-      executor.stop
-      Ps.mongod.should be_empty
+    it_behaves_like 'starts and stops'
+
+    context 'with auth' do
+      let(:client_options) do
+        base_client_options.merge(user: 'hello', password: 'word')
+      end
+
+      let(:dir) { '/db/single-auth' }
+
+      let(:options) do
+        {
+          dir: dir,
+          username: 'hello',
+          password: 'word',
+        }
+      end
+
+      it_behaves_like 'starts and stops'
     end
   end
 
   context 'replica set' do
+    let(:dir) { '/db/rs' }
+
     let(:options) do
       {
-        dir: '/db/rs',
+        dir: dir,
         replica_set: 'foo',
       }
     end
