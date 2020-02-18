@@ -99,9 +99,10 @@ module MongoManager
     end
 
     def init_single
-      spawn_mongo('mongod', root_dir.join('mongod.log').to_s,
+      spawn_mongo('mongod',
+        root_dir.join('mongod.log').to_s,
+        root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
-        '--pidfilepath', root_dir.join('mongod.pid').to_s,
       )
     end
 
@@ -112,10 +113,11 @@ module MongoManager
         puts("Spawn mongod on port #{port}")
         dir = root_dir.join("rs#{i}")
         FileUtils.mkdir(dir)
-        spawn_mongo('mongod', dir.join('mongod.log').to_s,
+        spawn_mongo('mongod',
+          dir.join('mongod.log').to_s,
+          dir.join('mongod.pid').to_s,
           '--dbpath', dir.to_s,
           '--port', port.to_s,
-          '--pidfilepath', dir.join('mongod.pid').to_s,
           '--replSet', options[:replica_set],
         )
       end
@@ -168,11 +170,12 @@ module MongoManager
       cmd.map { |part| "'" + part.gsub("'", "\\'") + "'" }.join(' ')
     end
 
-    def spawn_mongo(bin_basename, log_path, *args)
+    def spawn_mongo(bin_basename, log_path, pid_file_path, *args)
       bin_path = mongo_path(bin_basename)
       expanded_cmd = [
         bin_path,
         '--logpath', log_path,
+        '--pidfilepath', pid_file_path,
         '--fork',
       ] + args
       puts("Execute #{join_command(expanded_cmd)}")
