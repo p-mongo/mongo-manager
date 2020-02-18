@@ -63,7 +63,8 @@ module MongoManager
             # process; ignore)
           end
         end
-        deadline = Time.now + 10
+        allowed_time = 15
+        deadline = Time.now + allowed_time
         loop do
           begin
             Process.kill(0, pid)
@@ -72,7 +73,8 @@ module MongoManager
             break
           end
           if Time.now > deadline
-            raise StopError, "Could not stop pid #{pid} for #{db_dir}"
+            puts `ps awwxu`
+            raise StopError, "Pid #{pid} for #{db_dir} did not exit after #{allowed_time} seconds"
           end
           sleep 0.1
         end

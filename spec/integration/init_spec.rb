@@ -18,8 +18,21 @@ describe 'init' do
   end
 
   after do
-    executor.stop rescue nil
+    executor.stop #rescue nil
     FileUtils.rm_rf(dir)
+  end
+
+  shared_examples_for 'starts and stops' do
+    it 'starts' do
+      init_and_check
+    end
+
+    it 'stops' do
+      init_and_check
+      Ps.mongod.should_not be_empty
+      executor.stop
+      Ps.mongod.should be_empty
+    end
   end
 
   context 'single' do
@@ -37,19 +50,6 @@ describe 'init' do
       client.database.command(ping: 1)
       client.cluster.topology.class.name.should =~ /Single/
       client.close
-    end
-
-    shared_examples_for 'starts and stops' do
-      it 'starts' do
-        init_and_check
-      end
-
-      it 'stops' do
-        init_and_check
-        Ps.mongod.should_not be_empty
-        executor.stop
-        Ps.mongod.should be_empty
-      end
     end
 
     it_behaves_like 'starts and stops'
@@ -83,12 +83,14 @@ describe 'init' do
       }
     end
 
-    it 'starts' do
+    let(:init_and_check) do
       executor.init
 
       client.database.command(ping: 1)
       client.cluster.topology.class.name.should =~ /ReplicaSet/
       client.close
     end
+
+    it_behaves_like 'starts and stops'
   end
 end
