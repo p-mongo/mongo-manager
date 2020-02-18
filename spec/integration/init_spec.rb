@@ -38,7 +38,9 @@ describe 'init' do
 
     it 'stops' do
       init_and_check
+      Ps.mongod.should_not be_empty
       executor.stop
+      Ps.mongod.should be_empty
     end
   end
 

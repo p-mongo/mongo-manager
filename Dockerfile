@@ -8,7 +8,7 @@ RUN curl -fLo mongodb-linux-x86_64-enterprise-debian92-4.2.3.tgz https://downloa
 RUN tar xf mongodb-linux-x86_64-enterprise-debian92-4.2.3.tgz
 RUN mv mongo*/ /opt/mongodb
 
-RUN apt-get install -y libsnmp30
+RUN apt-get install -y libsnmp30 procps
 
 ENV PATH=/opt/mongodb/bin:$PATH
 
