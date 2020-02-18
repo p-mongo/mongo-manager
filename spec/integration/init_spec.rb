@@ -35,21 +35,30 @@ describe 'init' do
     end
   end
 
+  let(:init_and_check) do
+    executor.init
+
+    # Wait for topology to be discovered
+    client.database.command(ping: 1)
+
+    # Assert topology is as expected
+    client.cluster.topology.class.name.should =~ expected_topology
+
+    # Ensure deployment is writable
+    client['foo'].insert_one(test: 1)
+
+    client.close
+  end
+
   context 'standalone' do
     let(:dir) { '/db/standalone' }
+
+    let(:expected_topology) { /Single/ }
 
     let(:options) do
       {
         dir: dir,
       }
-    end
-
-    let(:init_and_check) do
-      executor.init
-
-      client.database.command(ping: 1)
-      client.cluster.topology.class.name.should =~ /Single/
-      client.close
     end
 
     it_behaves_like 'starts and stops'
@@ -83,13 +92,7 @@ describe 'init' do
       }
     end
 
-    let(:init_and_check) do
-      executor.init
-
-      client.database.command(ping: 1)
-      client.cluster.topology.class.name.should =~ /ReplicaSet/
-      client.close
-    end
+    let(:expected_topology) { /ReplicaSet/ }
 
     it_behaves_like 'starts and stops'
 
@@ -125,13 +128,7 @@ describe 'init' do
       }
     end
 
-    let(:init_and_check) do
-      executor.init
-
-      client.database.command(ping: 1)
-      client.cluster.topology.class.name.should =~ /Sharded/
-      client.close
-    end
+    let(:expected_topology) { /Sharded/ }
 
     it_behaves_like 'starts and stops'
 

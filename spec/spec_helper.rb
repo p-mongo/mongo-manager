@@ -1,5 +1,6 @@
 require 'rspec/expectations'
 require 'fileutils'
+autoload :Byebug, 'byebug'
 
 require 'mongo_manager'
 
