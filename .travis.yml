@@ -14,9 +14,9 @@ script:
     docker run -t --tmpfs /db:exec --init mongo-manager rspec spec/mongo_manager
     ;;
   api)
-    docker run -t --tmpfs /db:exec --init mongo-manager rspec spec/integration/init_spec.rb
+    docker run -t --tmpfs /db:exec --init mongo-manager rspec spec/integration/api
     ;;
   cmd)
-    docker run -t --tmpfs /db:exec --init mongo-manager rspec spec/integration/cmd_init_spec.rb
+    docker run -t --tmpfs /db:exec --init mongo-manager rspec spec/integration/cmd
     ;;
   esac
