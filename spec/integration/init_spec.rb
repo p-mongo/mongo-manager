@@ -102,7 +102,7 @@ describe 'init' do
       let(:options) do
         {
           dir: dir,
-          base_port: 27800
+          base_port: 27800,
         }
       end
 
@@ -148,6 +148,32 @@ describe 'init' do
 
       it_behaves_like 'starts and stops'
     end
+
+    context 'when base port is overridden' do
+      let(:dir) { '/db/rs-port' }
+
+      let(:options) do
+        {
+          dir: dir,
+          replica_set: 'foo',
+          base_port: 27800,
+        }
+      end
+
+      let(:client_addresses) do
+        ['localhost:27800']
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'uses correct ports' do
+        executor.init
+
+        client.cluster.scan!
+        client.cluster.servers.map(&:address).map(&:seed).sort.should ==
+          %w(localhost:27800 localhost:27801 localhost:27802)
+      end
+    end
   end
 
   context 'sharded' do
@@ -180,6 +206,24 @@ describe 'init' do
           password: 'word',
           sharded: 1,
         }
+      end
+
+      it_behaves_like 'starts and stops'
+    end
+
+    context 'when base port is overridden' do
+      let(:dir) { '/db/shard-port' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 1,
+          base_port: 27800,
+        }
+      end
+
+      let(:client_addresses) do
+        ['localhost:27800']
       end
 
       it_behaves_like 'starts and stops'
