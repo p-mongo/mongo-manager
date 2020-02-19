@@ -7,7 +7,11 @@ describe MongoManager::Main do
         mock = double('executor')
         mock.should receive(expected_command)
         if expected_options.empty?
-          MongoManager::Executor.should receive(:new).with(no_args).and_return(mock)
+          if RUBY_VERSION < '2.7'
+            MongoManager::Executor.should receive(:new).with({}).and_return(mock)
+          else
+            MongoManager::Executor.should receive(:new).with(no_args).and_return(mock)
+          end
         else
           MongoManager::Executor.should receive(:new).with(**expected_options).and_return(mock)
         end
