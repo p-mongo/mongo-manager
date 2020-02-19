@@ -1,5 +1,7 @@
 services: docker
 
-script:
+install:
   docker build -t mongo-manager .
+
+script:
   docker run -t mongo-manager
