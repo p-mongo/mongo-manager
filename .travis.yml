@@ -9,14 +9,14 @@ env:
   - test=cmd
 
 script:
-  case $test;
-  when unit)
+  case $test in
+  unit)
     docker run -t mongo-manager --tmpfs /db:exec --init rspec spec/mongo_manager
     ;;
-  when api)
+  api)
     docker run -t mongo-manager --tmpfs /db:exec --init rspec spec/integration/init_spec.rb
     ;;
-  when cmd)
+  cmd)
     docker run -t mongo-manager --tmpfs /db:exec --init rspec spec/integration/cmd_init_spec.rb
     ;;
   esac
