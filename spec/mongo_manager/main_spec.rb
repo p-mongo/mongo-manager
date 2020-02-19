@@ -80,6 +80,18 @@ describe MongoManager::Main do
 
           it_behaves_like 'parses arguments'
         end
+
+        context 'extra server option' do
+          let(:cmd_args) do
+            %w(init -- --setParameter enableTestCommands=1)
+          end
+
+          let(:expected_options) do
+            {passthrough: %w(--setParameter enableTestCommands=1)}
+          end
+
+          it_behaves_like 'parses arguments'
+        end
       end
 
       context 'replica set' do
