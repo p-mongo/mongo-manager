@@ -3,5 +3,20 @@ services: docker
 install:
   docker build -t mongo-manager .
 
+env:
+  - test=unit
+  - test=api
+  - test=cmd
+
 script:
-  docker run -t mongo-manager
+  case $test;
+  when unit)
+    docker run -t mongo-manager --tmpfs /db:exec --init rspec spec/mongo_manager
+    ;;
+  when api)
+    docker run -t mongo-manager --tmpfs /db:exec --init rspec spec/integration/init_spec.rb
+    ;;
+  when cmd)
+    docker run -t mongo-manager --tmpfs /db:exec --init rspec spec/integration/cmd_init_spec.rb
+    ;;
+  esac
