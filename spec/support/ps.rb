@@ -1,9 +1,13 @@
 module Ps
   module_function def mongod
-    `pgrep -x mongod`.split(/\s+/).compact.map(&:to_i)
+    get_pids('mongod')
   end
 
   module_function def mongos
-    `pgrep -x mongos`.split(/\s+/).compact.map(&:to_i)
+    get_pids('mongos')
+  end
+
+  module_function def get_pids(bin_basename)
+    `pgrep -x #{bin_basename}`.split(/\s+/).compact.map(&:to_i)
   end
 end
