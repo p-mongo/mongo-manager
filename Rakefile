@@ -15,20 +15,22 @@ task :build do
   run(%w(docker build -t mongo-manager .))
 end
 
+TEST_COMMAND = %w(docker run --tmpfs /db:exec --init -it mongo-manager).freeze
+
 task test: :build do
-  run(%w(docker run --tmpfs /db:exec --init -it mongo-manager))
+  run(TEST_COMMAND)
 end
 
 namespace :test do
   task unit: :build do
-    run(%w(docker run --tmpfs /db:exec --init -it mongo-manager rspec spec/mongo_manager))
+    run(TEST_COMMAND + %w(rspec spec/mongo_manager))
   end
 
   task api: :build do
-    run(%w(docker run --tmpfs /db:exec --init -it mongo-manager rspec spec/integration/api))
+    run(TEST_COMMAND + %w(rspec spec/integration/api))
   end
 
   task cmd: :build do
-    run(%w(docker run --tmpfs /db:exec --init -it mongo-manager rspec spec/integration/cmd))
+    run(TEST_COMMAND + %w(rspec spec/integration/cmd))
   end
 end
