@@ -299,7 +299,7 @@ module MongoManager
     end
 
     def root_dir
-      Pathname.new(options[:dir])
+      @root_dir ||= Pathname.new(options[:dir]).freeze
     end
 
     def mongo_path(binary)
