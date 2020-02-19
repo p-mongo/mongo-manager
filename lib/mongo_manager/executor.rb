@@ -282,10 +282,7 @@ module MongoManager
     def maybe_create_key
       if options[:username]
         key_file_path = root_dir.join('.key')
-        File.open(key_file_path, 'w') do |f|
-          f << Base64.encode64(OpenSSL::Random.random_bytes(756))
-        end
-        FileUtils.chmod(0600, key_file_path)
+        Helper.create_key(key_file_path)
         @common_args += ['--keyFile', key_file_path.to_s]
       end
     end

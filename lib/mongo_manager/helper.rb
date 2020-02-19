@@ -47,5 +47,12 @@ module MongoManager
     def join_command(cmd)
       cmd.map { |part| "'" + part.gsub("'", "\\'") + "'" }.join(' ')
     end
+
+    def create_key(key_file_path)
+      File.open(key_file_path, 'w') do |f|
+        f << Base64.encode64(OpenSSL::Random.random_bytes(756))
+      end
+      FileUtils.chmod(0600, key_file_path)
+    end
   end
 end
