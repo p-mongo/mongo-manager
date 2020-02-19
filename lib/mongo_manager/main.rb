@@ -43,7 +43,7 @@ module MongoManager
           options[:replica_set] = v
         end
 
-        opts.on('--sharded SHARDS', String, 'Create a sharded cluster with SHARDS shards') do |v|
+        opts.on('--sharded SHARDS', Integer, 'Create a sharded cluster with SHARDS shards') do |v|
           unless v.to_i > 0
             usage("invalid --sharded value: #{v}")
           end
@@ -52,6 +52,13 @@ module MongoManager
 
         opts.on('--bin-dir DIR', String, 'Path to mongod/mongos binaries') do |v|
           options[:bin_dir] = v
+        end
+
+        opts.on('--port PORT', Integer, 'Base port to use for deployment') do |v|
+          unless v.to_i > 0
+            usage("invalid --port value: #{v}")
+          end
+          options[:base_port] = v
         end
 
         opts.on('--user USER', String, 'Enable auth, add USER as a root user') do |v|

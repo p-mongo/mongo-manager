@@ -138,6 +138,7 @@ module MongoManager
         root_dir.join('mongod.log').to_s,
         root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
+        '--port', base_port.to_s,
       ]
       Helper.spawn_mongo(*cmd)
       record_start_command(root_dir, cmd)
@@ -288,7 +289,7 @@ module MongoManager
     end
 
     def base_port
-      @base_port ||= options[:port] || 27017
+      @base_port ||= options[:base_port] || 27017
     end
 
     def mongo_path(binary)

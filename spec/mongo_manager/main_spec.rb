@@ -68,6 +68,18 @@ describe MongoManager::Main do
 
           it_behaves_like 'parses arguments'
         end
+
+        context 'port option' do
+          let(:cmd_args) do
+            %w(init --port 27200)
+          end
+
+          let(:expected_options) do
+            {base_port: 27200}
+          end
+
+          it_behaves_like 'parses arguments'
+        end
       end
 
       context 'replica set' do

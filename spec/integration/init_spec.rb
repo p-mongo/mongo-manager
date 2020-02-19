@@ -13,8 +13,12 @@ describe 'init' do
     base_client_options
   end
 
+  let(:client_addresses) do
+    ['localhost:27017']
+  end
+
   let(:client) do
-    Mongo::Client.new(['localhost:27017'], client_options)
+    Mongo::Client.new(client_addresses, client_options)
   end
 
   before do
@@ -87,6 +91,23 @@ describe 'init' do
           username: 'hello',
           password: 'word',
         }
+      end
+
+      it_behaves_like 'starts and stops'
+    end
+
+    context 'when base port is overridden' do
+      let(:dir) { '/db/standalone-port' }
+
+      let(:options) do
+        {
+          dir: dir,
+          base_port: 27800
+        }
+      end
+
+      let(:client_addresses) do
+        ['localhost:27800']
       end
 
       it_behaves_like 'starts and stops'
