@@ -47,7 +47,7 @@ module MongoManager
     private def do_start
       config[:db_dirs].each do |db_dir|
         cmd = config[:settings][db_dir][:start_cmd]
-        spawn_mongo(*cmd)
+        Helper.spawn_mongo(*cmd)
       end
     end
 
@@ -145,12 +145,12 @@ module MongoManager
 
     def init_standalone
       cmd = [
-        'mongod',
+        mongo_path('mongod'),
         root_dir.join('mongod.log').to_s,
         root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
       ]
-      spawn_mongo(*cmd)
+      Helper.spawn_mongo(*cmd)
       record_start_command(root_dir, cmd)
 
       if options[:username]
@@ -164,7 +164,7 @@ module MongoManager
 
         cmd << '--auth'
 
-        spawn_mongo(*cmd)
+        Helper.spawn_mongo(*cmd)
       end
 
       record_start_command(root_dir, cmd)
@@ -236,13 +236,13 @@ module MongoManager
       puts("Spawn mongos on port #{port}")
       FileUtils.mkdir(dir)
       cmd = [
-        'mongos',
+        mongo_path('mongos'),
         dir.join('mongos.log').to_s,
         dir.join('mongos.pid').to_s,
         '--port', port.to_s,
         '--configdb', "csrs/localhost:27018",
       ] + common_args
-      spawn_mongo(*cmd)
+      Helper.spawn_mongo(*cmd)
       record_start_command(dir, cmd)
 
       write_config
@@ -310,65 +310,18 @@ module MongoManager
       end
     end
 
-    def spawn(*cmd)
-      if pid = fork
-        Process.wait(pid)
-        if $?.exitstatus != 0
-          raise SpawnError, "Exited with code #{$?.exitstatus}"
-        end
-      else
-        exec(*cmd)
-      end
-    end
-
-    def join_command(cmd)
-      cmd.map { |part| "'" + part.gsub("'", "\\'") + "'" }.join(' ')
-    end
-
-    def spawn_mongo(bin_basename, log_path, pid_file_path, *args)
-      bin_path = mongo_path(bin_basename)
-      expanded_cmd = [
-        bin_path,
-        '--logpath', log_path,
-        '--pidfilepath', pid_file_path,
-        '--fork',
-      ] + args
-      puts("Execute #{join_command(expanded_cmd)}")
-      spawn(*expanded_cmd)
-    rescue SpawnError => e
-      if File.exist?(log_path)
-        lines = File.read(log_path).split("\n")
-        start = [20, lines.length].min
-        if start > 0
-          lines = lines[-start..-1]
-          extra = "last 20 log lines from #{log_path}:\n#{lines.join("\n")}"
-          raise SpawnError, "#{e}; #{extra}"
-        else
-          raise SpawnError, "#{e}; log file #{log_path} empty"
-        end
-      else
-        extra = "log file #{log_path} does not exist"
-        if File.exist?(dir = File.dirname(log_path))
-          extra << "; directory #{dir} exists"
-        else
-          extra << "; directory #{dir} does not exist either"
-        end
-        raise SpawnError, "#{e}; #{extra}"
-      end
-    end
-
     def spawn_rs_node(dir, port, replica_set_name, args)
       puts("Spawn mongod on port #{port}")
       FileUtils.mkdir(dir)
       cmd = [
-        'mongod',
+        mongo_path('mongod'),
         dir.join('mongod.log').to_s,
         dir.join('mongod.pid').to_s,
         '--dbpath', dir.to_s,
         '--port', port.to_s,
         '--replSet', replica_set_name,
       ] + args
-      spawn_mongo(*cmd)
+      Helper.spawn_mongo(*cmd)
       record_start_command(dir, cmd)
     end
 
