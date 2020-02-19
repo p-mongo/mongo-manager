@@ -60,7 +60,7 @@ module MongoManager
     private def do_stop
       pids = {}
 
-      config[:db_dirs].each do |db_dir|
+      config[:db_dirs].reverse.each do |db_dir|
         binary_basename = File.basename(config[:settings][db_dir][:start_cmd].first)
         pid_file_path = File.join(db_dir, "#{binary_basename}.pid")
         if File.exist?(pid_file_path)
@@ -71,18 +71,32 @@ module MongoManager
           rescue Errno::ESRCH
             # No such process
           else
-            pids[db_dir] = pid
+            # In a sharded cluster, the order in which processes are killed
+            # matters: if the config server is killed before shards, the shards
+            # will wait a long time for the config server. Thus kill the
+            # processes in reverse order of starting and wait for each
+            # process before proceeding to the next one. In other topologies
+            # we can kill all processes and then wait for them all to die.
+            if config[:sharded]
+              do_wait(db_dir, pid)
+            else
+              pids[db_dir] = pid
+            end
           end
         end
       end
 
       pids.each do |db_dir, pid|
-        binary_basename = File.basename(config[:settings][db_dir][:start_cmd].first)
-        Helper.wait_for_pid(db_dir, pid, 15, binary_basename)
+        do_wait(db_dir, pid)
       end
     end
 
     private
+
+    def do_wait(db_dir, pid)
+      binary_basename = File.basename(config[:settings][db_dir][:start_cmd].first)
+      Helper.wait_for_pid(db_dir, pid, 15, binary_basename)
+    end
 
     def create_config
       if options[:sharded]
@@ -92,6 +106,7 @@ module MongoManager
             root_dir.join('shard1').to_s,
             root_dir.join('s1').to_s,
           ],
+          sharded: options[:sharded],
         }
       elsif options[:replica_set]
         @config = {
