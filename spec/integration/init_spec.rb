@@ -17,8 +17,15 @@ describe 'init' do
     Mongo::Client.new(['localhost:27017'], client_options)
   end
 
+  before do
+    Ps.mongos.should be_empty
+    Ps.mongos.should be_empty
+  end
+
   after do
     executor.stop #rescue nil
+    Ps.mongos.should be_empty
+    Ps.mongos.should be_empty
     FileUtils.rm_rf(dir)
   end
 
