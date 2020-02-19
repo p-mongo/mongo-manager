@@ -101,7 +101,10 @@ module MongoManager
           end
           if Time.now > deadline
             puts `ps awwxu`
-            raise StopError, "Pid #{pid} for #{db_dir} did not exit after #{allowed_time} seconds"
+            binary_basename = File.basename(config[:settings][db_dir][:start_cmd].first)
+            log_path = File.join(db_dir, "#{binary_basename}.log")
+            extra = Helper.excerpt_log_file(log_path)
+            raise StopError, "Pid #{pid} for #{db_dir} did not exit after #{allowed_time} seconds; #{extra}"
           end
           sleep 0.1
         end

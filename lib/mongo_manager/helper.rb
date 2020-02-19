@@ -23,29 +23,33 @@ module MongoManager
       puts("Execute #{join_command(expanded_cmd)}")
       spawn(*expanded_cmd)
     rescue SpawnError => e
+      extra = excerpt_log_file(log_path)
+      raise SpawnError, "#{e}; #{extra}"
+    end
+
+    def join_command(cmd)
+      cmd.map { |part| "'" + part.gsub("'", "\\'") + "'" }.join(' ')
+    end
+
+    def excerpt_log_file(log_path)
       if File.exist?(log_path)
         lines = File.read(log_path).split("\n")
         start = [20, lines.length].min
         if start > 0
           lines = lines[-start..-1]
-          extra = "last 20 log lines from #{log_path}:\n#{lines.join("\n")}"
-          raise SpawnError, "#{e}; #{extra}"
+          "last 20 log lines from #{log_path}:\n#{lines.join("\n")}"
         else
-          raise SpawnError, "#{e}; log file #{log_path} empty"
+          "log file #{log_path} empty"
         end
       else
-        extra = "log file #{log_path} does not exist"
+        excerpt = "log file #{log_path} does not exist"
         if File.exist?(dir = File.dirname(log_path))
-          extra << "; directory #{dir} exists"
+          excerpt << "; directory #{dir} exists"
         else
-          extra << "; directory #{dir} does not exist either"
+          excerpt << "; directory #{dir} does not exist either"
         end
-        raise SpawnError, "#{e}; #{extra}"
+        excerpt
       end
-    end
-
-    def join_command(cmd)
-      cmd.map { |part| "'" + part.gsub("'", "\\'") + "'" }.join(' ')
     end
 
     def create_key(key_file_path)
