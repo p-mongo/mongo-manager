@@ -7,4 +7,7 @@ module MongoManager
 
   class StopError < Error
   end
+
+  class WaitTimeout < Error
+  end
 end
