@@ -13,5 +13,5 @@ end
 
 task :test do
   run(%w(docker build -t mongo-manager .))
-  run(%w(docker run --tmpfs /db:exec -it mongo-manager))
+  run(%w(docker run --tmpfs /db:exec --init -it mongo-manager))
 end
