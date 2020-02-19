@@ -178,7 +178,7 @@ module MongoManager
         port = 27016 + i
         dir = root_dir.join("rs#{i}")
 
-        spawn_rs_node(dir, port, options[:replica_set], common_args)
+        spawn_replica_set_node(dir, port, options[:replica_set], common_args)
       end
 
       write_config
@@ -213,7 +213,7 @@ module MongoManager
     def init_sharded
       maybe_create_key
 
-      spawn_rs_node(
+      spawn_replica_set_node(
         root_dir.join('csrs'),
         27018,
         'csrs',
@@ -222,7 +222,7 @@ module MongoManager
 
       initiate_replica_set(%w(localhost:27018), 'csrs', configsvr: true)
 
-      spawn_rs_node(
+      spawn_replica_set_node(
         root_dir.join('shard1'),
         27019,
         'shard1',
@@ -310,7 +310,7 @@ module MongoManager
       end
     end
 
-    def spawn_rs_node(dir, port, replica_set_name, args)
+    def spawn_replica_set_node(dir, port, replica_set_name, args)
       puts("Spawn mongod on port #{port}")
       FileUtils.mkdir(dir)
       cmd = [
