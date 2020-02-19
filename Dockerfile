@@ -19,4 +19,4 @@ RUN bundle install
 
 COPY . .
 
-CMD bundle exec rspec
+CMD bundle exec rspec -f Rfc::Aif
