@@ -2,7 +2,7 @@ module MongoManager
   module Helper
     extend self
 
-    def spawn(*cmd)
+    def spawn(cmd)
       if pid = fork
         Process.wait(pid)
         if $?.exitstatus != 0
@@ -21,7 +21,7 @@ module MongoManager
         '--fork',
       ] + args
       puts("Execute #{join_command(expanded_cmd)}")
-      spawn(*expanded_cmd)
+      spawn(expanded_cmd)
     rescue SpawnError => e
       extra = excerpt_log_file(log_path)
       raise SpawnError, "#{e}; #{extra}"
@@ -89,6 +89,7 @@ module MongoManager
         Byebug.byebug
         end
 =end
+        puts `ps awxwu`
           log_path = File.join(db_dir, "#{binary_basename}.log")
           extra = Helper.excerpt_log_file(log_path)
           raise WaitTimeout, "Pid #{pid} for #{db_dir} did not exit after #{timeout} seconds; #{extra}"

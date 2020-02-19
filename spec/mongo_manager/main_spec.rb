@@ -2,19 +2,21 @@ require 'spec_helper'
 
 describe MongoManager::Main do
   describe '#run' do
-    context 'init' do
-      shared_examples_for 'parses arguments' do
-        it 'parses arguments' do
-          mock = double('executor')
-          mock.should receive(:init)
-          if expected_options.empty?
-            MongoManager::Executor.should receive(:new).with(no_args).and_return(mock)
-          else
-            MongoManager::Executor.should receive(:new).with(**expected_options).and_return(mock)
-          end
-          described_class.new.run(cmd_args)
+    shared_examples_for 'parses arguments' do
+      it 'parses arguments' do
+        mock = double('executor')
+        mock.should receive(expected_command)
+        if expected_options.empty?
+          MongoManager::Executor.should receive(:new).with(no_args).and_return(mock)
+        else
+          MongoManager::Executor.should receive(:new).with(**expected_options).and_return(mock)
         end
+        described_class.new.run(cmd_args)
       end
+    end
+
+    context 'init' do
+      let(:expected_command) { 'init' }
 
       context 'standalone' do
         let(:cmd_args) do
@@ -83,6 +85,34 @@ describe MongoManager::Main do
 
         let(:expected_options) do
           {sharded: 2}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
+    end
+
+    context 'stop' do
+      let(:expected_command) { 'stop' }
+
+      context 'dir before stop' do
+        let(:cmd_args) do
+          %w(--dir foo stop)
+        end
+
+        let(:expected_options) do
+          {dir: 'foo'}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
+
+      context 'dir after stop' do
+        let(:cmd_args) do
+          %w(stop --dir foo)
+        end
+
+        let(:expected_options) do
+          {dir: 'foo'}
         end
 
         it_behaves_like 'parses arguments'

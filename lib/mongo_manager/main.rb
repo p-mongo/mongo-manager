@@ -22,7 +22,7 @@ module MongoManager
         usage('no command given')
       end
 
-      commands = %w(init)
+      commands = %w(init stop)
       if commands.include?(command)
         send(command, argv)
       else
@@ -45,7 +45,7 @@ module MongoManager
 
         opts.on('--sharded SHARDS', String, 'Create a sharded cluster with SHARDS shards') do |v|
           unless v.to_i > 0
-            raise "Invalid --sharded value: #{v}"
+            usage("invalid --sharded value: #{v}")
           end
           options[:sharded] = v.to_i
         end
@@ -68,6 +68,19 @@ module MongoManager
       end
 
       Executor.new(**global_options.merge(options)).init
+    end
+
+    def stop(argv)
+      options = {}
+      parser = OptionParser.new do |opts|
+        configure_global_options(opts)
+      end.order!(argv)
+
+      unless argv.empty?
+        usage("bogus arguments: #{argv.join(' ')}")
+      end
+
+      Executor.new(**global_options.merge(options)).stop
     end
 
     private
