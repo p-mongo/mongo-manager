@@ -9,6 +9,7 @@ end
 group :test do
   gem 'rspec-core'
   gem 'rspec-expectations'
+  gem 'rspec-mocks'
   gem 'rfc'
   if RUBY_VERSION < '2.4'
     gem 'byebug', '~> 10'

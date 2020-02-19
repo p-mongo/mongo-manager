@@ -9,12 +9,14 @@ module MongoManager
 
     attr_reader :global_options
 
-    def run
-      parser = OptionParser.new do |opts|
-        opts.on('--dir DIR', String, 'Path to deployment')
-      end.order!(into: global_options)
+    def run(argv = ARGV)
+      argv = argv.dup
 
-      command = ARGV.shift
+      parser = OptionParser.new do |opts|
+        configure_global_options(opts)
+      end.order!(argv)
+
+      command = argv.shift
 
       if command.nil?
         usage('no command given')
@@ -22,7 +24,7 @@ module MongoManager
 
       commands = %w(init)
       if commands.include?(command)
-        send(command)
+        send(command, argv)
       else
         usage("unknown command: #{command}")
       end
@@ -32,17 +34,48 @@ module MongoManager
       raise msg
     end
 
-    def init
+    def init(argv)
       options = {}
       parser = OptionParser.new do |opts|
-        opts.on('--bin-dir DIR', String, 'Path to mongod/mongos binaries')
-      end.order!(into: options)
+        configure_global_options(opts)
 
-      unless ARGV.empty?
-        usage("bogus arguments: #{ARGV.join(' ')}")
+        opts.on('--replica-set NAME', String, 'Create a replica set with the specified NAME') do |v|
+          options[:replica_set] = v
+        end
+
+        opts.on('--sharded SHARDS', String, 'Create a sharded cluster with SHARDS shards') do |v|
+          unless v.to_i > 0
+            raise "Invalid --sharded value: #{v}"
+          end
+          options[:sharded] = v.to_i
+        end
+
+        opts.on('--bin-dir DIR', String, 'Path to mongod/mongos binaries') do |v|
+          options[:bin_dir] = v
+        end
+
+        opts.on('--user USER', String, 'Enable auth, add USER as a root user') do |v|
+          options[:username] = v
+        end
+
+        opts.on('--password PASS', String, 'Specify password for the user defined with --user') do |v|
+          options[:password] = v
+        end
+      end.order!(argv)
+
+      unless argv.empty?
+        usage("bogus arguments: #{argv.join(' ')}")
       end
 
       Executor.new(**global_options.merge(options)).init
+    end
+
+    private
+
+    def configure_global_options(opts)
+      opts.on('--dir DIR', String, 'Path to deployment') do |v|
+        global_options[:dir] = v
+      end
     end
 
     class << self
