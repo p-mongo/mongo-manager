@@ -143,7 +143,7 @@ module MongoManager
       record_start_command(root_dir, cmd)
 
       if options[:username]
-        client = Mongo::Client.new(['localhost:27017'],
+        client = Mongo::Client.new(["localhost:#{base_port}"],
           connect: :direct,
           database: 'admin')
         create_user(client)
@@ -164,7 +164,7 @@ module MongoManager
       maybe_create_key
 
       1.upto(options[:nodes] || 3) do |i|
-        port = 27016 + i
+        port = base_port - 1 + i
         dir = root_dir.join("rs#{i}")
 
         spawn_replica_set_node(dir, port, options[:replica_set], common_args)
@@ -173,12 +173,12 @@ module MongoManager
       write_config
 
       initiate_replica_set(
-        %w(localhost:27017 localhost:27018 localhost:27019),
+        %W(localhost:#{base_port} localhost:#{base_port+1} localhost:#{base_port+2}),
         options[:replica_set],
       )
 
       puts("Waiting for replica set to initialize")
-      client = Mongo::Client.new(['localhost:27017'],
+      client = Mongo::Client.new(["localhost:#{base_port}"],
         replica_set: options[:replica_set], database: 'admin')
       client.database.command(ping: 1)
 
@@ -189,7 +189,7 @@ module MongoManager
         stop
         start
 
-        client = Mongo::Client.new(['localhost:27017'],
+        client = Mongo::Client.new(["localhost:#{base_port}"],
           replica_set: options[:replica_set], database: 'admin',
           user: options[:username], password: options[:password],
         )
@@ -204,41 +204,40 @@ module MongoManager
 
       spawn_replica_set_node(
         root_dir.join('csrs'),
-        27018,
+        base_port + 1,
         'csrs',
         common_args + %w(--configsvr),
       )
 
-      initiate_replica_set(%w(localhost:27018), 'csrs', configsvr: true)
+      initiate_replica_set(%W(localhost:#{base_port+1}), 'csrs', configsvr: true)
 
       spawn_replica_set_node(
         root_dir.join('shard1'),
-        27019,
+        base_port + 2,
         'shard1',
         common_args + %w(--shardsvr),
       )
 
-      initiate_replica_set(%w(localhost:27019), 'shard1')
+      initiate_replica_set(%W(localhost:#{base_port+2}), 'shard1')
 
-      port = 27017
       dir = root_dir.join('s1')
-      puts("Spawn mongos on port #{port}")
+      puts("Spawn mongos on port #{base_port}")
       FileUtils.mkdir(dir)
       cmd = [
         mongo_path('mongos'),
         dir.join('mongos.log').to_s,
         dir.join('mongos.pid').to_s,
-        '--port', port.to_s,
-        '--configdb', "csrs/localhost:27018",
+        '--port', base_port.to_s,
+        '--configdb', "csrs/localhost:#{base_port+1}",
       ] + common_args
       Helper.spawn_mongo(*cmd)
       record_start_command(dir, cmd)
 
       write_config
 
-      client = Mongo::Client.new(['localhost:27017'], database: 'admin')
+      client = Mongo::Client.new(["localhost:#{base_port}"], database: 'admin')
       client.database.command(
-        addShard: "shard1/localhost:27019",
+        addShard: "shard1/localhost:#{base_port+2}",
       )
 
       if options[:username]
@@ -286,6 +285,10 @@ module MongoManager
 
     def root_dir
       @root_dir ||= Pathname.new(options[:dir]).freeze
+    end
+
+    def base_port
+      @base_port ||= options[:port] || 27017
     end
 
     def mongo_path(binary)
