@@ -126,9 +126,9 @@ describe 'init' do
       it 'passes the option' do
         executor.init
 
-        pid = Ps.mongod
-        pid.length.should == 1
-        cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+        pids = Ps.mongod
+        pids.length.should == 1
+        cmdline = `ps awwxu |grep #{pids.first} |grep -v grep |grep mongod`
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--setParameter enableTestCommands=1')
       end
@@ -195,6 +195,31 @@ describe 'init' do
           %w(localhost:27800 localhost:27801 localhost:27802)
       end
     end
+
+    context 'extra server option' do
+      let(:dir) { '/db/rs-extra-option' }
+
+      let(:options) do
+        {
+          dir: dir,
+          replica_set: 'foo',
+          passthrough_args: %w(--setParameter enableTestCommands=1)
+        }
+      end
+
+      it 'passes the option' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 3
+
+        pids.each do |pid|
+          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--setParameter enableTestCommands=1')
+        end
+      end
+    end
   end
 
   context 'sharded' do
@@ -248,6 +273,40 @@ describe 'init' do
       end
 
       it_behaves_like 'starts and stops'
+    end
+
+    context 'extra server option' do
+      let(:dir) { '/db/shard-extra-option' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 1,
+          passthrough_args: %w(--setParameter enableTestCommands=1)
+        }
+      end
+
+      it 'passes the option' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 2
+
+        pids.each do |pid|
+          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--setParameter enableTestCommands=1')
+        end
+
+        pids = Ps.mongos
+        pids.length.should == 1
+
+        pids.each do |pid|
+          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongos`
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--setParameter enableTestCommands=1')
+        end
+      end
     end
   end
 end

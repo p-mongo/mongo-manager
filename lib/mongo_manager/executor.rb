@@ -164,6 +164,8 @@ module MongoManager
     def init_rs
       maybe_create_key
 
+      @common_args += passthrough_args
+
       1.upto(options[:nodes] || 3) do |i|
         port = base_port - 1 + i
         dir = root_dir.join("rs#{i}")
@@ -202,6 +204,8 @@ module MongoManager
 
     def init_sharded
       maybe_create_key
+
+      @common_args += passthrough_args
 
       spawn_replica_set_node(
         root_dir.join('csrs'),
