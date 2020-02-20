@@ -87,7 +87,7 @@ describe MongoManager::Main do
           end
 
           let(:expected_options) do
-            {passthrough: %w(--setParameter enableTestCommands=1)}
+            {passthrough_args: %w(--setParameter enableTestCommands=1)}
           end
 
           it_behaves_like 'parses arguments'

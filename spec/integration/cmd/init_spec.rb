@@ -42,8 +42,12 @@ describe 'init - cmd' do
     end
   end
 
-  let(:init_and_check) do
+  let(:init) do
     MongoManager::Helper.spawn(['./bin/mongo-manager', 'init', '--dir', dir] + args)
+  end
+
+  let(:init_and_check) do
+    init
 
     # Wait for topology to be discovered
     client.database.command(ping: 1)
@@ -98,6 +102,24 @@ describe 'init - cmd' do
       end
 
       it_behaves_like 'starts and stops'
+    end
+
+    context 'extra server option' do
+      let(:dir) { '/db/standalone-extra-option' }
+
+      let(:args) do
+        %w(-- --setParameter enableTestCommands=1)
+      end
+
+      it 'passes the option' do
+        init
+
+        pid = Ps.mongod
+        pid.length.should == 1
+        cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+        cmdline.strip.split("\n").length.should == 1
+        cmdline.should include('--setParameter enableTestCommands=1')
+      end
     end
   end
 

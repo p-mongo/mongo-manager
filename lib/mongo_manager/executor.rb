@@ -139,7 +139,7 @@ module MongoManager
         root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
         '--port', base_port.to_s,
-      ]
+      ] + passthrough_args
       Helper.spawn_mongo(*cmd)
       record_start_command(root_dir, cmd)
 
@@ -290,6 +290,10 @@ module MongoManager
 
     def base_port
       @base_port ||= options[:base_port] || 27017
+    end
+
+    def passthrough_args
+      options[:passthrough_args] || []
     end
 
     def mongo_path(binary)

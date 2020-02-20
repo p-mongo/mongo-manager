@@ -71,7 +71,7 @@ module MongoManager
       end.order!(argv)
 
       unless argv.empty?
-        options[:passthrough] = argv
+        options[:passthrough_args] = argv
       end
 
       Executor.new(**global_options.merge(options)).init

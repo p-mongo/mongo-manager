@@ -112,6 +112,27 @@ describe 'init' do
 
       it_behaves_like 'starts and stops'
     end
+
+    context 'extra server option' do
+      let(:dir) { '/db/standalone-extra-option' }
+
+      let(:options) do
+        {
+          dir: dir,
+          passthrough_args: %w(--setParameter enableTestCommands=1)
+        }
+      end
+
+      it 'passes the option' do
+        executor.init
+
+        pid = Ps.mongod
+        pid.length.should == 1
+        cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+        cmdline.strip.split("\n").length.should == 1
+        cmdline.should include('--setParameter enableTestCommands=1')
+      end
+    end
   end
 
   context 'replica set' do
