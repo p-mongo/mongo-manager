@@ -64,3 +64,12 @@ Resources regarding daemonization:
 - [tini](https://github.com/krallin/tini) - init for containers
 - [How to handle pid files](https://stackoverflow.com/questions/688343/reference-for-proper-handling-of-pid-file-on-unix)
 - [man setsid](https://linux.die.net/man/2/setsid), [man setpgrp](https://linux.die.net/man/2/setpgrp)
+
+## Replica Sets
+
+When initiating a replica set (i.e. calling `replSetInitiate`), the node
+on which initiation is invoked, on server 3.0 at least, does not wait for any
+sort of a timeout for the other nodes. If any of the other nodes are still
+starting and are not yet available, `replSetInitiate` immediately fails.
+MM works around this by waiting for each node separately before trying to
+initiate the replica set.

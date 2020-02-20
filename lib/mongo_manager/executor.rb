@@ -262,6 +262,18 @@ module MongoManager
     end
 
     def initiate_replica_set(hosts, replica_set_name, **opts)
+      # replSetInitiate fails immediately if any of the hosts are not
+      # available; wait for them to come up
+      hosts.each do |host|
+        puts("Waiting for #{host} to start")
+        client = Mongo::Client.new([host], connect: :direct)
+        begin
+          client.database.command(ping: 1)
+        ensure
+          client.close
+        end
+      end
+
       members = []
       hosts.each_with_index do |host, index|
         members << { _id: index, host: host }
