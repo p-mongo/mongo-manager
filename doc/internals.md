@@ -19,8 +19,16 @@ and [mongos arguments](https://docs.mongodb.com/manual/reference/program/mongos/
 
 ## Differences From mlaunch
 
+- MM does not try to parse (and thus, does not need to have knowledge of)
+all server arguments. Instead, MM provides mechanisms for argument passthrough
+for all processes as well as `mongod`/`mongos` only.
+- MM creates one state/data directory per launched process (`mongod`/`mongos`).
+`mongos` do not hold data but they still produce a log and a pid file.
 - MM configures all `mongod` and `mongos` processes to write a pid file,
 which is used to kill them later.
+- MM names log and pid files after the basename of the binary in all cases,
+e.g. `mongos.log` and `mongos.pid`. mlaunch uses `mongos_#{port}.log` for
+`mongos` log files since it places multiple files in the same directory.
 
 ## Diagnostics
 
