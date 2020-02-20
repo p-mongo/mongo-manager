@@ -17,9 +17,7 @@ end
 
 TEST_COMMAND = %w(docker run --tmpfs /db:exec --init -it mongo-manager).freeze
 
-task test: :build do
-  run(TEST_COMMAND)
-end
+task test: %w(test:unit test:api test:cmd)
 
 namespace :test do
   task unit: :build do
