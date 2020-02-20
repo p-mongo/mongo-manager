@@ -21,14 +21,14 @@ task test: %w(test:unit test:api test:cmd)
 
 namespace :test do
   task unit: :build do
-    run(TEST_COMMAND + %w(rspec spec/mongo_manager))
+    run(TEST_COMMAND + %w(rspec -f Rfc::Aif spec/mongo_manager))
   end
 
   task api: :build do
-    run(TEST_COMMAND + %w(rspec spec/integration/api))
+    run(TEST_COMMAND + %w(rspec -f Rfc::Aif spec/integration/api))
   end
 
   task cmd: :build do
-    run(TEST_COMMAND + %w(rspec spec/integration/cmd))
+    run(TEST_COMMAND + %w(rspec -f Rfc::Aif spec/integration/cmd))
   end
 end

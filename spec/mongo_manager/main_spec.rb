@@ -117,6 +117,18 @@ describe MongoManager::Main do
 
         it_behaves_like 'parses arguments'
       end
+
+      context 'mongos' do
+        let(:cmd_args) do
+          %w(init --mongos 2)
+        end
+
+        let(:expected_options) do
+          {mongos: 2}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
     end
 
     context 'stop' do

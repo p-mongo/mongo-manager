@@ -223,18 +223,56 @@ describe 'init' do
   end
 
   context 'sharded' do
-    let(:dir) { '/db/shard' }
-
-    let(:options) do
-      {
-        dir: dir,
-        sharded: 1,
-      }
-    end
-
     let(:expected_topology) { /Sharded/ }
 
-    it_behaves_like 'starts and stops'
+    context ':sharded option' do
+      let(:dir) { '/db/shard-sharded' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 2,
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'creates two shards and one mongos' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 3
+
+        pids.each do |pid|
+          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+          cmdline.strip.split("\n").length.should == 1
+        end
+      end
+    end
+
+    context ':mongos option' do
+      let(:dir) { '/db/shard-mongos' }
+
+      let(:options) do
+        {
+          dir: dir,
+          mongos: 2,
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'creates one shard and two mongos' do
+        executor.init
+
+        pids = Ps.mongod
+        # one config server mongod and one shard mongod
+        pids.length.should == 2
+
+        pids = Ps.mongos
+        pids.length.should == 2
+      end
+    end
 
     context 'with auth' do
       let(:client_options) do
@@ -295,6 +333,7 @@ describe 'init' do
         pids.each do |pid|
           cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
           cmdline.strip.split("\n").length.should == 1
+          puts cmdline
           cmdline.should include('--setParameter enableTestCommands=1')
         end
 

@@ -43,11 +43,18 @@ module MongoManager
           options[:replica_set] = v
         end
 
-        opts.on('--sharded SHARDS', Integer, 'Create a sharded cluster with SHARDS shards') do |v|
+        opts.on('--sharded NUM', Integer, 'Create a sharded cluster with NUM shards') do |v|
           unless v.to_i > 0
             usage("invalid --sharded value: #{v}")
           end
           options[:sharded] = v.to_i
+        end
+
+        opts.on('--mongos NUM', Integer, 'Create a sharded cluster with NUM mongos') do |v|
+          unless v.to_i > 0
+            usage("invalid --mongos value: #{v}")
+          end
+          options[:mongos] = v.to_i
         end
 
         opts.on('--bin-dir DIR', String, 'Path to mongod/mongos binaries') do |v|

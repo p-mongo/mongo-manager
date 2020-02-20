@@ -29,7 +29,7 @@ module MongoManager
       FileUtils.mkdir_p(root_dir)
       create_config
 
-      if options[:sharded]
+      if sharded?
         init_sharded
       elsif options[:replica_set]
         init_rs
@@ -99,24 +99,19 @@ module MongoManager
     end
 
     def create_config
-      if options[:sharded]
+      if sharded?
         @config = {
-          db_dirs: [
-            root_dir.join('csrs').to_s,
-            root_dir.join('shard1').to_s,
-            root_dir.join('s1').to_s,
-          ],
-          sharded: options[:sharded],
+          db_dirs: [],
+          sharded: num_shards,
+          mongos: num_mongos,
         }
       elsif options[:replica_set]
         @config = {
-          db_dirs: 1.upto(options[:nodes] || 3).map do |i|
-            root_dir.join("rs#{i}").to_s
-          end,
+          db_dirs: [],
         }
       else
         @config = {
-          db_dirs: [root_dir.to_s],
+          db_dirs: [],
         }
       end
       write_config
@@ -130,6 +125,7 @@ module MongoManager
 
     def read_config
       @config = YAML.load(File.read(File.join(root_dir, 'mongo-manager.yml')))
+      p config
     end
 
     def init_standalone
@@ -209,41 +205,54 @@ module MongoManager
 
       spawn_replica_set_node(
         root_dir.join('csrs'),
-        base_port + 1,
+        base_port + num_mongos,
         'csrs',
         common_args + %w(--configsvr),
       )
 
-      initiate_replica_set(%W(localhost:#{base_port+1}), 'csrs', configsvr: true)
+      initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
 
-      spawn_replica_set_node(
-        root_dir.join('shard1'),
-        base_port + 2,
-        'shard1',
-        common_args + %w(--shardsvr),
-      )
+      shard_base_port = base_port + num_mongos + 1
 
-      initiate_replica_set(%W(localhost:#{base_port+2}), 'shard1')
+      1.upto(num_shards) do |shard|
+        shard_name = 'shard%02d' % shard
+        port = shard_base_port - 1 + shard
+        spawn_replica_set_node(
+          root_dir.join(shard_name),
+          port,
+          shard_name,
+          common_args + %w(--shardsvr),
+        )
 
-      dir = root_dir.join('s1')
-      puts("Spawn mongos on port #{base_port}")
-      FileUtils.mkdir(dir)
-      cmd = [
-        mongo_path('mongos'),
-        dir.join('mongos.log').to_s,
-        dir.join('mongos.pid').to_s,
-        '--port', base_port.to_s,
-        '--configdb', "csrs/localhost:#{base_port+1}",
-      ] + common_args
-      Helper.spawn_mongo(*cmd)
-      record_start_command(dir, cmd)
+        initiate_replica_set(%W(localhost:#{port}), shard_name)
+      end
+
+      1.upto(num_mongos) do |mongos|
+        port = base_port - 1 + mongos
+        dir = root_dir.join('router%02d' % mongos)
+        puts("Spawn mongos on port #{port}")
+        FileUtils.mkdir(dir)
+        cmd = [
+          mongo_path('mongos'),
+          dir.join('mongos.log').to_s,
+          dir.join('mongos.pid').to_s,
+          '--port', port.to_s,
+          '--configdb', "csrs/localhost:#{base_port+num_mongos}",
+        ] + common_args
+        Helper.spawn_mongo(*cmd)
+        record_start_command(dir, cmd)
+      end
 
       write_config
 
       client = Mongo::Client.new(["localhost:#{base_port}"], database: 'admin')
-      client.database.command(
-        addShard: "shard1/localhost:#{base_port+2}",
-      )
+      1.upto(num_shards) do |shard|
+        shard_str = "shard#{'%02d' % shard}/localhost:#{base_port+num_mongos+shard}"
+        puts("Adding shard #{shard_str}")
+        client.database.command(
+          addShard: shard_str,
+        )
+      end
 
       if options[:username]
         create_user(client)
@@ -300,6 +309,24 @@ module MongoManager
       options[:passthrough_args] || []
     end
 
+    def sharded?
+      !!(options[:mongos] || options[:sharded])
+    end
+
+    def num_shards
+      unless sharded?
+        raise ArgumentError, "Not in a sharded topology"
+      end
+      options[:sharded] || 1
+    end
+
+    def num_mongos
+      unless sharded?
+        raise ArgumentError, "Not in a sharded topology"
+      end
+      options[:mongos] || 1
+    end
+
     def mongo_path(binary)
       if options[:bin_dir]
         File.join(options[:bin_dir], binary)
@@ -324,9 +351,11 @@ module MongoManager
     end
 
     def record_start_command(dir, cmd)
+      dir = dir.to_s
       config[:settings] ||= {}
-      config[:settings][dir.to_s] ||= {}
-      config[:settings][dir.to_s][:start_cmd] = cmd
+      config[:settings][dir] ||= {}
+      config[:settings][dir][:start_cmd] = cmd
+      config[:db_dirs] << dir unless config[:db_dirs].include?(dir)
     end
   end
 end
