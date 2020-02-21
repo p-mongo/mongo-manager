@@ -136,13 +136,16 @@ module MongoManager
         '--dbpath', root_dir.to_s,
         '--port', base_port.to_s,
       ] + passthrough_args + (options[:mongod_passthrough_args] || [])
+      if options[:tls_mode]
+        cmd += server_tls_args
+      end
       Helper.spawn_mongo(*cmd)
       record_start_command(root_dir, cmd)
 
       if options[:username]
         client = Mongo::Client.new(["localhost:#{base_port}"],
-          connect: :direct,
-          database: 'admin')
+          client_tls_options.merge(
+            connect: :direct, database: 'admin'))
         create_user(client)
         client.close
 
@@ -345,6 +348,27 @@ module MongoManager
       else
         binary
       end
+    end
+
+    def server_tls_args
+      @server_tls_args ||= begin
+        args = ['--tlsMode', options[:tls_mode]]
+        if options[:tls_certificate_key_file]
+          args += ['--tlsCertificateKeyFile', options[:tls_certificate_key_file]]
+        end
+        if options[:tls_ca_file]
+          args += ['--tlsCAFile', options[:tls_ca_file]]
+        end
+        args
+      end.freeze
+    end
+
+    def client_tls_options
+      {
+        ssl: true,
+        ssl_cert: options[:tls_certificate_key_file],
+        ssl_ca_cert: options[:tls_ca_file],
+      }
     end
 
     def spawn_replica_set_node(dir, port, replica_set_name, args)

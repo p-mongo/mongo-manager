@@ -76,6 +76,18 @@ module MongoManager
           options[:password] = v
         end
 
+        opts.on('--tls-mode MODE', String, 'Enable TLS and specify TLS mode to pass to mongod/mongos') do |v|
+          options[:tls_mode] = v
+        end
+
+        opts.on('--tls-certificate-key-file PATH', String, 'Path to client certificate') do |v|
+          options[:tls_certificate_key_file] = v
+        end
+
+        opts.on('--tls-ca-file PATH', String, 'Path to CA certificate') do |v|
+          options[:tls_ca_file] = v
+        end
+
         opts.on('--mongod-arg ARG', String, 'Pass an argument to mongod') do |v|
           options[:mongod_passthrough_args] ||= []
           options[:mongod_passthrough_args] << v
