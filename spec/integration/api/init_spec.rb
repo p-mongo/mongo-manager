@@ -166,7 +166,7 @@ describe 'init' do
         {
           dir: dir,
           tls_mode: 'requireTLS',
-          tls_certificate_key_file: 'spec/support/certificates/client.pem',
+          tls_certificate_key_file: 'spec/support/certificates/server.pem',
           tls_ca_file: 'spec/support/certificates/ca.crt',
         }
       end
@@ -174,8 +174,8 @@ describe 'init' do
       let(:client_options) do
         base_client_options.merge(
           ssl: true,
-          ssl_cert: 'spec/support/certificates/client.pem',
-          ssl_key: 'spec/support/certificates/client.pem',
+          ssl_cert: 'spec/support/certificates/server.pem',
+          ssl_key: 'spec/support/certificates/server.pem',
           ssl_ca_cert: 'spec/support/certificates/ca.crt',
         )
       end
@@ -192,7 +192,7 @@ describe 'init' do
         cmdline = Ps.get_cmdline(pid, 'mongod')
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--tlsMode requireTLS')
-        cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/client.pem')
+        cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
         cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
       end
     end
@@ -317,7 +317,7 @@ describe 'init' do
           dir: dir,
           replica_set: 'foo',
           tls_mode: 'requireTLS',
-          tls_certificate_key_file: 'spec/support/certificates/client.pem',
+          tls_certificate_key_file: 'spec/support/certificates/server.pem',
           tls_ca_file: 'spec/support/certificates/ca.crt',
         }
       end
@@ -325,8 +325,8 @@ describe 'init' do
       let(:client_options) do
         base_client_options.merge(
           ssl: true,
-          ssl_cert: 'spec/support/certificates/client.pem',
-          ssl_key: 'spec/support/certificates/client.pem',
+          ssl_cert: 'spec/support/certificates/server.pem',
+          ssl_key: 'spec/support/certificates/server.pem',
           ssl_ca_cert: 'spec/support/certificates/ca.crt',
         )
       end
@@ -343,7 +343,7 @@ describe 'init' do
           cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--tlsMode requireTLS')
-          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/client.pem')
+          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
           cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
         end
       end
@@ -508,6 +508,57 @@ describe 'init' do
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
           cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
+        end
+      end
+    end
+
+    context 'tls' do
+      let(:dir) { '/db/sharded-tls' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 1,
+          tls_mode: 'requireTLS',
+          tls_certificate_key_file: 'spec/support/certificates/server.pem',
+          tls_ca_file: 'spec/support/certificates/ca.crt',
+        }
+      end
+
+      let(:client_options) do
+        base_client_options.merge(
+          ssl: true,
+          ssl_cert: 'spec/support/certificates/server.pem',
+          ssl_key: 'spec/support/certificates/server.pem',
+          ssl_ca_cert: 'spec/support/certificates/ca.crt',
+        )
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'passes the arguments' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 2
+
+        pids.each do |pid|
+          cmdline = Ps.get_cmdline(pid, 'mongod')
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--tlsMode requireTLS')
+          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
+          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
+        end
+
+        pids = Ps.mongos
+        pids.length.should == 1
+
+        pids.each do |pid|
+          cmdline = Ps.get_cmdline(pid, 'mongos')
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--tlsMode requireTLS')
+          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
+          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
         end
       end
     end

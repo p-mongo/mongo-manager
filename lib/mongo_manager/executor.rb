@@ -241,7 +241,8 @@ module MongoManager
           dir.join('mongos.pid').to_s,
           '--port', port.to_s,
           '--configdb', "csrs/localhost:#{base_port+num_mongos}",
-        ] + common_args + passthrough_args + (options[:mongos_passthrough_args] || [])
+        ] + server_tls_args + common_args +
+          passthrough_args + (options[:mongos_passthrough_args] || [])
         Helper.spawn_mongo(*cmd)
         record_start_command(dir, cmd)
       end
