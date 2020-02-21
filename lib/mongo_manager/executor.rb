@@ -192,7 +192,7 @@ module MongoManager
     def init_sharded
       maybe_create_key
 
-      if config[:csrs]
+      if options[:csrs] || server_version >= Gem::Version.new('3.4')
         spawn_replica_set_node(
           root_dir.join('csrs'),
           base_port + num_mongos,
@@ -201,8 +201,12 @@ module MongoManager
         )
 
         initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
+
+        config_db_opt = "csrs/localhost:#{base_port+num_mongos}"
       else
         spawn_standalone(root_dir.join('csrs'), base_port + num_mongos, %w(--configsvr))
+
+        config_db_opt = "localhost:#{base_port+num_mongos}"
       end
 
       shard_base_port = base_port + num_mongos + 1
@@ -218,12 +222,6 @@ module MongoManager
         )
 
         initiate_replica_set(%W(localhost:#{port}), shard_name)
-      end
-
-      config_db_opt = if options[:csrs]
-        "csrs/localhost:#{base_port+num_mongos}"
-      else
-        "localhost:#{base_port+num_mongos}"
       end
 
       1.upto(num_mongos) do |mongos|
@@ -351,7 +349,7 @@ module MongoManager
     end
 
     def server_version
-      @server_version ||= begin
+      @server_version ||= Gem::Version.new(begin
         path = mongo_path('mongod')
         if path =~ /\s/
           raise "Path cannot contain spaces: #{path}"
@@ -367,19 +365,13 @@ module MongoManager
         end
 
         $1
-      end
-    end
-
-    def server_42?
-      if @server_42.nil?
-        @server_42 = Gem::Version.new(server_version) >= Gem::Version.new('4.2')
-      end
-      @server_42
+      end)
     end
 
     def server_tls_args
+      server_42 = server_version >= Gem::Version.new('4.2')
       @server_tls_args ||= if options[:tls_mode]
-        if server_42?
+        if server_42
           opt_name = '--tlsMode'
           opt_value = options[:tls_mode]
         else
@@ -388,7 +380,7 @@ module MongoManager
         end
         args = [opt_name, opt_value]
         if options[:tls_certificate_key_file]
-          if server_42?
+          if server_42
             opt_name = '--tlsCertificateKeyFile'
           else
             opt_name = '--sslPEMKeyFile'
@@ -396,7 +388,7 @@ module MongoManager
           args += [opt_name, options[:tls_certificate_key_file]]
         end
         if options[:tls_ca_file]
-          if server_42?
+          if server_42
             opt_name = '--tlsCAFile'
           else
             opt_name = '--sslCAFile'
