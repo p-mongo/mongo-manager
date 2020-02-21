@@ -129,15 +129,8 @@ module MongoManager
     end
 
     def init_standalone
-      cmd = [
-        mongo_path('mongod'),
-        root_dir.join('mongod.log').to_s,
-        root_dir.join('mongod.pid').to_s,
-        '--dbpath', root_dir.to_s,
-        '--port', base_port.to_s,
-      ] + server_tls_args + (options[:mongod_passthrough_args] || []) + passthrough_args
-      Helper.spawn_mongo(*cmd)
-      record_start_command(root_dir, cmd)
+      dir = root_dir.join('standalone')
+      spawn_standalone(dir, base_port, [])
 
       if options[:username]
         client = Mongo::Client.new(["localhost:#{base_port}"],
@@ -148,12 +141,9 @@ module MongoManager
 
         do_stop
 
-        cmd << '--auth'
-
-        Helper.spawn_mongo(*cmd)
+        spawn_standalone(dir, base_port, %w(--auth))
       end
 
-      record_start_command(root_dir, cmd)
       write_config
     end
 
@@ -202,14 +192,18 @@ module MongoManager
     def init_sharded
       maybe_create_key
 
-      spawn_replica_set_node(
-        root_dir.join('csrs'),
-        base_port + num_mongos,
-        'csrs',
-        common_args + %w(--configsvr),
-      )
+      if config[:csrs]
+        spawn_replica_set_node(
+          root_dir.join('csrs'),
+          base_port + num_mongos,
+          'csrs',
+          common_args + %w(--configsvr),
+        )
 
-      initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
+        initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
+      else
+        spawn_standalone(root_dir.join('csrs'), base_port + num_mongos, %w(--configsvr))
+      end
 
       shard_base_port = base_port + num_mongos + 1
 
@@ -226,6 +220,12 @@ module MongoManager
         initiate_replica_set(%W(localhost:#{port}), shard_name)
       end
 
+      config_db_opt = if options[:csrs]
+        "csrs/localhost:#{base_port+num_mongos}"
+      else
+        "localhost:#{base_port+num_mongos}"
+      end
+
       1.upto(num_mongos) do |mongos|
         port = base_port - 1 + mongos
         dir = root_dir.join('router%02d' % mongos)
@@ -236,7 +236,7 @@ module MongoManager
           dir.join('mongos.log').to_s,
           dir.join('mongos.pid').to_s,
           '--port', port.to_s,
-          '--configdb', "csrs/localhost:#{base_port+num_mongos}",
+          '--configdb', config_db_opt,
         ] + server_tls_args + common_args +
           passthrough_args + (options[:mongos_passthrough_args] || [])
         Helper.spawn_mongo(*cmd)
@@ -420,6 +420,21 @@ module MongoManager
       else
         {}
       end.freeze
+    end
+
+    def spawn_standalone(dir, port, args)
+      puts("Spawn mongod on port #{port}")
+      FileUtils.mkdir_p(dir)
+      cmd = [
+        mongo_path('mongod'),
+        dir.join('mongod.log').to_s,
+        dir.join('mongod.pid').to_s,
+        '--dbpath', dir.to_s,
+        '--port', port.to_s,
+      ] + args + server_tls_args +
+        (options[:mongod_passthrough_args] || []) + passthrough_args
+      Helper.spawn_mongo(*cmd)
+      record_start_command(dir, cmd)
     end
 
     def spawn_replica_set_node(dir, port, replica_set_name, args)

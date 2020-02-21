@@ -82,3 +82,9 @@ sort of a timeout for the other nodes. If any of the other nodes are still
 starting and are not yet available, `replSetInitiate` immediately fails.
 MM works around this by waiting for each node separately before trying to
 initiate the replica set.
+
+## Sharded Clusters
+
+MongoDB 2.6 requires that the config server is a standalone and not a
+replica set. mlaunch creates a standalone config server for MongoDB 3.2 and
+lower, and replica sets for MongoDB 3.4 and higher.

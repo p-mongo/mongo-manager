@@ -7,6 +7,7 @@ env:
   - test=unit
   - test=api
   - test=cmd
+  - test=legacy
 
 script:
   case $test in
@@ -18,5 +19,8 @@ script:
     ;;
   cmd)
     rake test:cmd
+    ;;
+  legacy)
+    rake test:legacy
     ;;
   esac
