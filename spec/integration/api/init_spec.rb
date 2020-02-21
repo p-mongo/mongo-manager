@@ -130,7 +130,7 @@ describe 'init' do
         pids.length.should == 1
         pid = pids.first
 
-        cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+        cmdline = Ps.get_cmdline(pid, 'mongod')
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--setParameter enableTestCommands=1')
       end
@@ -153,7 +153,7 @@ describe 'init' do
         pids.length.should == 1
         pid = pids.first
 
-        cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+        cmdline = Ps.get_cmdline(pid, 'mongod')
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
       end
@@ -239,7 +239,7 @@ describe 'init' do
         pids.length.should == 3
 
         pids.each do |pid|
-          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+          cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
         end
@@ -264,7 +264,7 @@ describe 'init' do
         pids.length.should == 3
 
         pids.each do |pid|
-          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+          cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
         end
@@ -294,7 +294,7 @@ describe 'init' do
         pids.length.should == 3
 
         pids.each do |pid|
-          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+          cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
         end
       end
@@ -381,7 +381,7 @@ describe 'init' do
         pids.length.should == 2
 
         pids.each do |pid|
-          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+          cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
         end
@@ -390,7 +390,7 @@ describe 'init' do
         pids.length.should == 1
 
         pids.each do |pid|
-          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongos`
+          cmdline = Ps.get_cmdline(pid, 'mongos')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
         end
@@ -416,7 +416,7 @@ describe 'init' do
         pids.length.should == 2
 
         pids.each do |pid|
-          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+          cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
           cmdline.should_not include('--setParameter enableTestCommands=1')
@@ -426,7 +426,7 @@ describe 'init' do
         pids.length.should == 1
 
         pids.each do |pid|
-          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongos`
+          cmdline = Ps.get_cmdline(pid, 'mongos')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
           cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
