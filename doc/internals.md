@@ -16,6 +16,7 @@ and [mongos arguments](https://docs.mongodb.com/manual/reference/program/mongos/
 [addShard reference](https://docs.mongodb.com/manual/reference/command/addShard/#dbcmd.addShard)
 - [Auth in a sharded cluster](https://docs.mongodb.com/manual/tutorial/deploy-sharded-cluster-with-keyfile-access-control/)
 - [Ruby driver logging](https://docs.mongodb.com/ruby-driver/current/tutorials/ruby-driver-create-client/#logging)
+- [Configure TLS](https://docs.mongodb.com/manual/tutorial/configure-ssl/)
 
 ## Differences From mlaunch
 
