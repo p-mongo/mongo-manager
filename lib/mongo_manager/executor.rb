@@ -135,10 +135,7 @@ module MongoManager
         root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
         '--port', base_port.to_s,
-      ] + passthrough_args + (options[:mongod_passthrough_args] || [])
-      if options[:tls_mode]
-        cmd += server_tls_args
-      end
+      ] + server_tls_args + passthrough_args + (options[:mongod_passthrough_args] || [])
       Helper.spawn_mongo(*cmd)
       record_start_command(root_dir, cmd)
 
@@ -181,7 +178,8 @@ module MongoManager
 
       puts("Waiting for replica set to initialize")
       client = Mongo::Client.new(["localhost:#{base_port}"],
-        replica_set: options[:replica_set], database: 'admin')
+        client_tls_options.merge(
+          replica_set: options[:replica_set], database: 'admin'))
       client.database.command(ping: 1)
 
       if options[:username]
@@ -192,8 +190,10 @@ module MongoManager
         start
 
         client = Mongo::Client.new(["localhost:#{base_port}"],
-          replica_set: options[:replica_set], database: 'admin',
-          user: options[:username], password: options[:password],
+          client_tls_options.merge(
+            replica_set: options[:replica_set], database: 'admin',
+            user: options[:username], password: options[:password],
+          ),
         )
         client.database.command(ping: 1)
       end
@@ -248,7 +248,8 @@ module MongoManager
 
       write_config
 
-      client = Mongo::Client.new(["localhost:#{base_port}"], database: 'admin')
+      client = Mongo::Client.new(["localhost:#{base_port}"],
+        client_tls_options.merge(database: 'admin'))
       1.upto(num_shards) do |shard|
         shard_str = "shard#{'%02d' % shard}/localhost:#{base_port+num_mongos+shard}"
         puts("Adding shard #{shard_str}")
@@ -269,7 +270,8 @@ module MongoManager
       # available; wait for them to come up
       hosts.each do |host|
         puts("Waiting for #{host} to start")
-        client = Mongo::Client.new([host], connect: :direct)
+        client = Mongo::Client.new([host],
+          client_tls_options.merge(connect: :direct))
         begin
           client.database.command(ping: 1)
         ensure
@@ -288,7 +290,8 @@ module MongoManager
       }.update(opts)
 
       puts("Initiating replica set #{replica_set_name}/#{hosts.join(',')}")
-      client = Mongo::Client.new([hosts.first], connect: :direct)
+      client = Mongo::Client.new([hosts.first], client_tls_options.merge(
+        connect: :direct))
       begin
         client.database.command(replSetInitiate: rs_config)
       ensure
@@ -351,7 +354,7 @@ module MongoManager
     end
 
     def server_tls_args
-      @server_tls_args ||= begin
+      @server_tls_args ||= if options[:tls_mode]
         args = ['--tlsMode', options[:tls_mode]]
         if options[:tls_certificate_key_file]
           args += ['--tlsCertificateKeyFile', options[:tls_certificate_key_file]]
@@ -360,6 +363,8 @@ module MongoManager
           args += ['--tlsCAFile', options[:tls_ca_file]]
         end
         args
+      else
+        []
       end.freeze
     end
 
@@ -367,6 +372,7 @@ module MongoManager
       {
         ssl: true,
         ssl_cert: options[:tls_certificate_key_file],
+        ssl_key: options[:tls_certificate_key_file],
         ssl_ca_cert: options[:tls_ca_file],
       }
     end
@@ -381,7 +387,7 @@ module MongoManager
         '--dbpath', dir.to_s,
         '--port', port.to_s,
         '--replSet', replica_set_name,
-      ] + args + (options[:mongod_passthrough_args] || [])
+      ] + server_tls_args + args + (options[:mongod_passthrough_args] || [])
       Helper.spawn_mongo(*cmd)
       record_start_command(dir, cmd)
     end

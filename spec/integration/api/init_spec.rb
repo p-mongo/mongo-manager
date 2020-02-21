@@ -308,6 +308,46 @@ describe 'init' do
         end
       end
     end
+
+    context 'tls' do
+      let(:dir) { '/db/rs-tls' }
+
+      let(:options) do
+        {
+          dir: dir,
+          replica_set: 'foo',
+          tls_mode: 'requireTLS',
+          tls_certificate_key_file: 'spec/support/certificates/client.pem',
+          tls_ca_file: 'spec/support/certificates/ca.crt',
+        }
+      end
+
+      let(:client_options) do
+        base_client_options.merge(
+          ssl: true,
+          ssl_cert: 'spec/support/certificates/client.pem',
+          ssl_key: 'spec/support/certificates/client.pem',
+          ssl_ca_cert: 'spec/support/certificates/ca.crt',
+        )
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'passes the arguments' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 3
+
+        pids.each do |pid|
+          cmdline = Ps.get_cmdline(pid, 'mongod')
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--tlsMode requireTLS')
+          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/client.pem')
+          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
+        end
+      end
+    end
   end
 
   context 'sharded' do
