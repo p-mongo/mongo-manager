@@ -135,7 +135,7 @@ module MongoManager
         root_dir.join('mongod.pid').to_s,
         '--dbpath', root_dir.to_s,
         '--port', base_port.to_s,
-      ] + passthrough_args
+      ] + passthrough_args + (options[:mongod_passthrough_args] || [])
       Helper.spawn_mongo(*cmd)
       record_start_command(root_dir, cmd)
 
@@ -166,7 +166,7 @@ module MongoManager
         port = base_port - 1 + i
         dir = root_dir.join("rs#{i}")
 
-        spawn_replica_set_node(dir, port, options[:replica_set], common_args)
+        spawn_replica_set_node(dir, port, options[:replica_set], common_args + passthrough_args)
       end
 
       write_config
@@ -207,7 +207,7 @@ module MongoManager
         root_dir.join('csrs'),
         base_port + num_mongos,
         'csrs',
-        common_args + %w(--configsvr),
+        common_args + %w(--configsvr) + passthrough_args,
       )
 
       initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
@@ -221,7 +221,7 @@ module MongoManager
           root_dir.join(shard_name),
           port,
           shard_name,
-          common_args + %w(--shardsvr),
+          common_args + %w(--shardsvr) + passthrough_args,
         )
 
         initiate_replica_set(%W(localhost:#{port}), shard_name)
@@ -238,7 +238,7 @@ module MongoManager
           dir.join('mongos.pid').to_s,
           '--port', port.to_s,
           '--configdb', "csrs/localhost:#{base_port+num_mongos}",
-        ] + common_args
+        ] + common_args + passthrough_args + (options[:mongos_passthrough_args] || [])
         Helper.spawn_mongo(*cmd)
         record_start_command(dir, cmd)
       end
@@ -357,7 +357,7 @@ module MongoManager
         '--dbpath', dir.to_s,
         '--port', port.to_s,
         '--replSet', replica_set_name,
-      ] + args
+      ] + args + (options[:mongod_passthrough_args] || [])
       Helper.spawn_mongo(*cmd)
       record_start_command(dir, cmd)
     end

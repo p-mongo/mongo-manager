@@ -75,6 +75,16 @@ module MongoManager
         opts.on('--password PASS', String, 'Specify password for the user defined with --user') do |v|
           options[:password] = v
         end
+
+        opts.on('--mongod-arg ARG', String, 'Pass an argument to mongod') do |v|
+          options[:mongod_passthrough_args] ||= []
+          options[:mongod_passthrough_args] << v
+        end
+
+        opts.on('--mongos-arg ARG', String, 'Pass an argument to mongos') do |v|
+          options[:mongos_passthrough_args] ||= []
+          options[:mongos_passthrough_args] << v
+        end
       end.order!(argv)
 
       unless argv.empty?

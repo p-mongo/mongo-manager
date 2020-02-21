@@ -128,9 +128,34 @@ describe 'init' do
 
         pids = Ps.mongod
         pids.length.should == 1
-        cmdline = `ps awwxu |grep #{pids.first} |grep -v grep |grep mongod`
+        pid = pids.first
+
+        cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--setParameter enableTestCommands=1')
+      end
+    end
+
+    context 'mongod passthrough' do
+      let(:dir) { '/db/standalone-mongod-passthrough' }
+
+      let(:options) do
+        {
+          dir: dir,
+          mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
+        }
+      end
+
+      it 'passes the arguments' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 1
+        pid = pids.first
+
+        cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+        cmdline.strip.split("\n").length.should == 1
+        cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
       end
     end
   end
@@ -214,9 +239,34 @@ describe 'init' do
         pids.length.should == 3
 
         pids.each do |pid|
-          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
+        end
+      end
+    end
+
+    context 'mongod passthrough' do
+      let(:dir) { '/db/rs-mongod-passthrough' }
+
+      let(:options) do
+        {
+          dir: dir,
+          replica_set: 'foo',
+          mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
+        }
+      end
+
+      it 'passes the arguments' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 3
+
+        pids.each do |pid|
+          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
         end
       end
     end
@@ -244,7 +294,7 @@ describe 'init' do
         pids.length.should == 3
 
         pids.each do |pid|
-          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
           cmdline.strip.split("\n").length.should == 1
         end
       end
@@ -320,7 +370,7 @@ describe 'init' do
         {
           dir: dir,
           sharded: 1,
-          passthrough_args: %w(--setParameter enableTestCommands=1)
+          passthrough_args: %w(--setParameter enableTestCommands=1),
         }
       end
 
@@ -331,9 +381,8 @@ describe 'init' do
         pids.length.should == 2
 
         pids.each do |pid|
-          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongod`
+          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
           cmdline.strip.split("\n").length.should == 1
-          puts cmdline
           cmdline.should include('--setParameter enableTestCommands=1')
         end
 
@@ -341,9 +390,46 @@ describe 'init' do
         pids.length.should == 1
 
         pids.each do |pid|
-          cmdline = `ps awwxu |grep #{pid} |grep -v grep |grep mongos`
+          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongos`
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
+        end
+      end
+    end
+
+    context 'mongod and mongos passthrough' do
+      let(:dir) { '/db/shard-mongod-mongos-passthrough' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 1,
+          mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
+          mongos_passthrough_args: %w(--setParameter enableTestCommands=1),
+        }
+      end
+
+      it 'passes the arguments' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 2
+
+        pids.each do |pid|
+          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongod`
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
+          cmdline.should_not include('--setParameter enableTestCommands=1')
+        end
+
+        pids = Ps.mongos
+        pids.length.should == 1
+
+        pids.each do |pid|
+          cmdline = `ps awwxu |egrep '\\b#{pid}\\b' |grep -v grep |grep mongos`
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--setParameter enableTestCommands=1')
+          cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
         end
       end
     end

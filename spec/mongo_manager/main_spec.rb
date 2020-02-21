@@ -129,6 +129,30 @@ describe MongoManager::Main do
 
         it_behaves_like 'parses arguments'
       end
+
+      context 'mongod argument passthrough' do
+        let(:cmd_args) do
+          %w(init --mongod-arg foo)
+        end
+
+        let(:expected_options) do
+          {mongod_passthrough_args: %w(foo)}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
+
+      context 'mongos argument passthrough' do
+        let(:cmd_args) do
+          %w(init --mongos-arg foo)
+        end
+
+        let(:expected_options) do
+          {mongos_passthrough_args: %w(foo)}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
     end
 
     context 'stop' do
