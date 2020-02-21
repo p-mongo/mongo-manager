@@ -195,6 +195,36 @@ describe 'init' do
         cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
         cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
       end
+
+      context 'with legacy option names' do
+        let(:dir) { '/db/standalone-tls-legacy' }
+
+        let(:options) do
+          {
+            dir: dir,
+            bin_dir: '/opt/mongodb/4.0/bin',
+            tls_mode: 'requireTLS',
+            tls_certificate_key_file: 'spec/support/certificates/server.pem',
+            tls_ca_file: 'spec/support/certificates/ca.crt',
+          }
+        end
+
+        it_behaves_like 'starts and stops'
+
+        it 'passes the arguments' do
+          executor.init
+
+          pids = Ps.mongod
+          pids.length.should == 1
+          pid = pids.first
+
+          cmdline = Ps.get_cmdline(pid, 'mongod')
+          cmdline.strip.split("\n").length.should == 1
+          cmdline.should include('--sslMode requireSSL')
+          cmdline.should include('--sslPEMKeyFile spec/support/certificates/server.pem')
+          cmdline.should include('--sslCAFile spec/support/certificates/ca.crt')
+        end
+      end
     end
   end
 

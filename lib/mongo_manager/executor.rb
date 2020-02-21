@@ -354,14 +354,58 @@ module MongoManager
       end
     end
 
+    def server_version
+      @server_version ||= begin
+        path = mongo_path('mongod')
+        if path =~ /\s/
+          raise "Path cannot contain spaces: #{path}"
+        end
+
+        output = `#{path} --version`
+        if $?.exitstatus != 0
+          raise "mongod --version exited with code #{$?.exitstatus}: #{output}"
+        end
+
+        unless output =~ /db version v(\d+\.\d+\.\d+)/
+          raise "Output did not contain version: #{output}"
+        end
+
+        $1
+      end
+    end
+
+    def server_42?
+      if @server_42.nil?
+        @server_42 = Gem::Version.new(server_version) >= Gem::Version.new('4.2')
+      end
+      @esrver_42
+    end
+
     def server_tls_args
       @server_tls_args ||= if options[:tls_mode]
-        args = ['--tlsMode', options[:tls_mode]]
+        if server_42?
+          opt_name = '--tlsMode'
+          opt_value = options[:tls_mode]
+        else
+          opt_name = '--sslMode'
+          opt_value = options[:tls_mode].sub('TLS','SSL')
+        end
+        args = [opt_name, opt_value]
         if options[:tls_certificate_key_file]
-          args += ['--tlsCertificateKeyFile', options[:tls_certificate_key_file]]
+          if server_42?
+            opt_name = '--tlsCertificateKeyFile'
+          else
+            opt_name = '--sslPEMKeyFile'
+          end
+          args += [opt_name, options[:tls_certificate_key_file]]
         end
         if options[:tls_ca_file]
-          args += ['--tlsCAFile', options[:tls_ca_file]]
+          if server_42?
+            opt_name = '--tlsCAFile'
+          else
+            opt_name = '--sslCAFile'
+          end
+          args += [opt_name, options[:tls_ca_file]]
         end
         args
       else
