@@ -378,7 +378,7 @@ module MongoManager
       if @server_42.nil?
         @server_42 = Gem::Version.new(server_version) >= Gem::Version.new('4.2')
       end
-      @esrver_42
+      @server_42
     end
 
     def server_tls_args
