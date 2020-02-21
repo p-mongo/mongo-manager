@@ -414,12 +414,16 @@ module MongoManager
     end
 
     def client_tls_options
-      {
-        ssl: true,
-        ssl_cert: options[:tls_certificate_key_file],
-        ssl_key: options[:tls_certificate_key_file],
-        ssl_ca_cert: options[:tls_ca_file],
-      }
+      if options[:tls_mode]
+        {
+          ssl: true,
+          ssl_cert: options[:tls_certificate_key_file],
+          ssl_key: options[:tls_certificate_key_file],
+          ssl_ca_cert: options[:tls_ca_file],
+        }
+      else
+        {}
+      end.freeze
     end
 
     def spawn_replica_set_node(dir, port, replica_set_name, args)
