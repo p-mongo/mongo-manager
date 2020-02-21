@@ -90,6 +90,7 @@ describe 'init' do
           dir: dir,
           username: 'hello',
           password: 'word',
+          auth_source: 'admin',
         }
       end
 
@@ -133,6 +134,8 @@ describe 'init' do
         cmdline = Ps.get_cmdline(pid, 'mongod')
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--setParameter enableTestCommands=1')
+
+        cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
       end
     end
 
@@ -310,6 +313,8 @@ describe 'init' do
           cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
+
+          cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
         end
       end
     end
@@ -492,6 +497,8 @@ describe 'init' do
           cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
+
+          cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
         end
 
         pids = Ps.mongos
@@ -501,6 +508,8 @@ describe 'init' do
           cmdline = Ps.get_cmdline(pid, 'mongos')
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
+
+          cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
         end
       end
     end
