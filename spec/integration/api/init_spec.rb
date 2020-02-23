@@ -142,13 +142,6 @@ describe 'init' do
           cmdline.strip.split("\n").length.should == 1
         end
       end
-
-      it 'uses a standalone for config server' do
-        executor.init
-
-        client = Mongo::Client.new(['localhost:27018'])
-        client.cluster.topology.class.name.should =~ /Single/
-      end
     end
 
     context ':mongos option' do

@@ -17,20 +17,6 @@ describe 'init' do
         }
       end
 
-      it_behaves_like 'starts and stops'
-
-      it 'creates two shards and one mongos' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 3
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-        end
-      end
-
       it 'uses a standalone for config server' do
         executor.init
 

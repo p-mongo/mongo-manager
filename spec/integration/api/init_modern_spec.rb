@@ -225,6 +225,24 @@ describe 'init' do
   context 'sharded' do
     let(:expected_topology) { /Sharded/ }
 
+    context ':sharded option' do
+      let(:dir) { '/db/shard-sharded' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 2,
+        }
+      end
+
+      it 'uses a replica set for config server' do
+        executor.init
+
+        client = Mongo::Client.new(['localhost:27018'])
+        client.cluster.topology.class.name.should =~ /ReplicaSet/
+      end
+    end
+
     context 'extra server option' do
       let(:dir) { '/db/shard-extra-option' }
 
