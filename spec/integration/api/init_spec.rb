@@ -1,74 +1,13 @@
 require 'spec_helper'
+require 'support/contexts/init'
 
 describe 'init' do
-  let(:executor) do
-    MongoManager::Executor.new(options)
-  end
-
-  let(:base_client_options) do
-    {server_selection_timeout: 5}
-  end
-
-  let(:client_options) do
-    base_client_options
-  end
-
-  let(:client_addresses) do
-    ['localhost:27017']
-  end
-
-  let(:client) do
-    Mongo::Client.new(client_addresses, client_options)
-  end
-
-  before do
-    Ps.mongos.should be_empty
-    Ps.mongos.should be_empty
-  end
-
-  after do
-    executor.stop #rescue nil
-    Ps.mongos.should be_empty
-    Ps.mongos.should be_empty
-    FileUtils.rm_rf(dir)
-  end
-
-  shared_examples_for 'starts and stops' do
-    it 'starts' do
-      init_and_check
-    end
-
-    it 'stops' do
-      init_and_check
-      Ps.mongod.should_not be_empty
-      executor.stop
-      Ps.mongod.should be_empty
-    end
-  end
-
-  let(:init_and_check) do
-    executor.init
-
-    # Wait for topology to be discovered
-    client.database.command(ping: 1)
-
-    # Assert topology is as expected
-    client.cluster.topology.class.name.should =~ expected_topology
-
-    # Ensure deployment is writable - admin db
-    client.use('admin')['foo'].insert_one(test: 1)
-
-    # In a sharded cluster admin db is writable even when no shards are defined,
-    # use a non-admin db to catch the condition of no shards being defined
-    client.use('test')['foo'].insert_one(test: 1)
-
-    client.close
-  end
+  include_context 'init'
 
   context 'standalone' do
-    let(:dir) { '/db/standalone' }
-
     let(:expected_topology) { /Single/ }
+
+    let(:dir) { '/db/standalone' }
 
     let(:options) do
       {
@@ -113,125 +52,11 @@ describe 'init' do
 
       it_behaves_like 'starts and stops'
     end
-
-    context 'extra server option' do
-      let(:dir) { '/db/standalone-extra-option' }
-
-      let(:options) do
-        {
-          dir: dir,
-          passthrough_args: %w(--setParameter enableTestCommands=1)
-        }
-      end
-
-      it 'passes the option' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 1
-        pid = pids.first
-
-        cmdline = Ps.get_cmdline(pid, 'mongod')
-        cmdline.strip.split("\n").length.should == 1
-        cmdline.should include('--setParameter enableTestCommands=1')
-
-        cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
-      end
-    end
-
-    context 'mongod passthrough' do
-      let(:dir) { '/db/standalone-mongod-passthrough' }
-
-      let(:options) do
-        {
-          dir: dir,
-          mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
-        }
-      end
-
-      it 'passes the arguments' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 1
-        pid = pids.first
-
-        cmdline = Ps.get_cmdline(pid, 'mongod')
-        cmdline.strip.split("\n").length.should == 1
-        cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
-      end
-    end
-
-    context 'tls' do
-      let(:dir) { '/db/standalone-tls' }
-
-      let(:options) do
-        {
-          dir: dir,
-          tls_mode: 'requireTLS',
-          tls_certificate_key_file: 'spec/support/certificates/server.pem',
-          tls_ca_file: 'spec/support/certificates/ca.crt',
-        }
-      end
-
-      let(:client_options) do
-        base_client_options.merge(
-          ssl: true,
-          ssl_cert: 'spec/support/certificates/server.pem',
-          ssl_key: 'spec/support/certificates/server.pem',
-          ssl_ca_cert: 'spec/support/certificates/ca.crt',
-        )
-      end
-
-      it_behaves_like 'starts and stops'
-
-      it 'passes the arguments' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 1
-        pid = pids.first
-
-        cmdline = Ps.get_cmdline(pid, 'mongod')
-        cmdline.strip.split("\n").length.should == 1
-        cmdline.should include('--tlsMode requireTLS')
-        cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
-        cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
-      end
-
-      context 'with legacy option names' do
-        let(:dir) { '/db/standalone-tls-legacy' }
-
-        let(:options) do
-          {
-            dir: dir,
-            bin_dir: '/opt/mongodb/4.0/bin',
-            tls_mode: 'requireTLS',
-            tls_certificate_key_file: 'spec/support/certificates/server.pem',
-            tls_ca_file: 'spec/support/certificates/ca.crt',
-          }
-        end
-
-        it_behaves_like 'starts and stops'
-
-        it 'passes the arguments' do
-          executor.init
-
-          pids = Ps.mongod
-          pids.length.should == 1
-          pid = pids.first
-
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--sslMode requireSSL')
-          cmdline.should include('--sslPEMKeyFile spec/support/certificates/server.pem')
-          cmdline.should include('--sslCAFile spec/support/certificates/ca.crt')
-        end
-      end
-    end
   end
 
   context 'replica set' do
+    let(:expected_topology) { /ReplicaSet/ }
+
     let(:dir) { '/db/rs' }
 
     let(:options) do
@@ -240,8 +65,6 @@ describe 'init' do
         replica_set: 'foo',
       }
     end
-
-    let(:expected_topology) { /ReplicaSet/ }
 
     it_behaves_like 'starts and stops'
 
@@ -286,101 +109,9 @@ describe 'init' do
       it 'uses correct ports' do
         executor.init
 
-        client.cluster.scan!
-        client.cluster.servers.map(&:address).map(&:seed).sort.should ==
+        client.database.command(ping: 1)
+        client.cluster.send(:servers_list).map(&:address).map(&:seed).sort.should ==
           %w(localhost:27800 localhost:27801 localhost:27802)
-      end
-    end
-
-    context 'extra server option' do
-      let(:dir) { '/db/rs-extra-option' }
-
-      let(:options) do
-        {
-          dir: dir,
-          replica_set: 'foo',
-          passthrough_args: %w(--setParameter enableTestCommands=1)
-        }
-      end
-
-      it 'passes the option' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 3
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter enableTestCommands=1')
-
-          cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
-        end
-      end
-    end
-
-    context 'mongod passthrough' do
-      let(:dir) { '/db/rs-mongod-passthrough' }
-
-      let(:options) do
-        {
-          dir: dir,
-          replica_set: 'foo',
-          mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
-        }
-      end
-
-      it 'passes the arguments' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 3
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
-        end
-      end
-    end
-
-    context 'tls' do
-      let(:dir) { '/db/rs-tls' }
-
-      let(:options) do
-        {
-          dir: dir,
-          replica_set: 'foo',
-          tls_mode: 'requireTLS',
-          tls_certificate_key_file: 'spec/support/certificates/server.pem',
-          tls_ca_file: 'spec/support/certificates/ca.crt',
-        }
-      end
-
-      let(:client_options) do
-        base_client_options.merge(
-          ssl: true,
-          ssl_cert: 'spec/support/certificates/server.pem',
-          ssl_key: 'spec/support/certificates/server.pem',
-          ssl_ca_cert: 'spec/support/certificates/ca.crt',
-        )
-      end
-
-      it_behaves_like 'starts and stops'
-
-      it 'passes the arguments' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 3
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--tlsMode requireTLS')
-          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
-          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
-        end
       end
     end
   end
@@ -474,132 +205,6 @@ describe 'init' do
       end
 
       it_behaves_like 'starts and stops'
-    end
-
-    context 'extra server option' do
-      let(:dir) { '/db/shard-extra-option' }
-
-      let(:options) do
-        {
-          dir: dir,
-          sharded: 1,
-          passthrough_args: %w(--setParameter enableTestCommands=1),
-        }
-      end
-
-      it 'passes the option' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 2
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter enableTestCommands=1')
-
-          cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
-        end
-
-        pids = Ps.mongos
-        pids.length.should == 1
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongos')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter enableTestCommands=1')
-
-          cmdline.scan(/--setParameter enableTestCommands=1/).length.should == 1
-        end
-      end
-    end
-
-    context 'mongod and mongos passthrough' do
-      let(:dir) { '/db/shard-mongod-mongos-passthrough' }
-
-      let(:options) do
-        {
-          dir: dir,
-          sharded: 1,
-          mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
-          mongos_passthrough_args: %w(--setParameter enableTestCommands=1),
-        }
-      end
-
-      it 'passes the arguments' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 2
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
-          cmdline.should_not include('--setParameter enableTestCommands=1')
-        end
-
-        pids = Ps.mongos
-        pids.length.should == 1
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongos')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter enableTestCommands=1')
-          cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
-        end
-      end
-    end
-
-    context 'tls' do
-      let(:dir) { '/db/sharded-tls' }
-
-      let(:options) do
-        {
-          dir: dir,
-          sharded: 1,
-          tls_mode: 'requireTLS',
-          tls_certificate_key_file: 'spec/support/certificates/server.pem',
-          tls_ca_file: 'spec/support/certificates/ca.crt',
-        }
-      end
-
-      let(:client_options) do
-        base_client_options.merge(
-          ssl: true,
-          ssl_cert: 'spec/support/certificates/server.pem',
-          ssl_key: 'spec/support/certificates/server.pem',
-          ssl_ca_cert: 'spec/support/certificates/ca.crt',
-        )
-      end
-
-      it_behaves_like 'starts and stops'
-
-      it 'passes the arguments' do
-        executor.init
-
-        pids = Ps.mongod
-        pids.length.should == 2
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--tlsMode requireTLS')
-          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
-          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
-        end
-
-        pids = Ps.mongos
-        pids.length.should == 1
-
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongos')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--tlsMode requireTLS')
-          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
-          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
-        end
-      end
     end
   end
 end

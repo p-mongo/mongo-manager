@@ -129,15 +129,8 @@ module MongoManager
     end
 
     def init_standalone
-      cmd = [
-        mongo_path('mongod'),
-        root_dir.join('mongod.log').to_s,
-        root_dir.join('mongod.pid').to_s,
-        '--dbpath', root_dir.to_s,
-        '--port', base_port.to_s,
-      ] + server_tls_args + (options[:mongod_passthrough_args] || []) + passthrough_args
-      Helper.spawn_mongo(*cmd)
-      record_start_command(root_dir, cmd)
+      dir = root_dir.join('standalone')
+      spawn_standalone(dir, base_port, [])
 
       if options[:username]
         client = Mongo::Client.new(["localhost:#{base_port}"],
@@ -148,12 +141,9 @@ module MongoManager
 
         do_stop
 
-        cmd << '--auth'
-
-        Helper.spawn_mongo(*cmd)
+        spawn_standalone(dir, base_port, %w(--auth))
       end
 
-      record_start_command(root_dir, cmd)
       write_config
     end
 
@@ -202,14 +192,23 @@ module MongoManager
     def init_sharded
       maybe_create_key
 
-      spawn_replica_set_node(
-        root_dir.join('csrs'),
-        base_port + num_mongos,
-        'csrs',
-        common_args + %w(--configsvr),
-      )
+      if options[:csrs] || server_version >= Gem::Version.new('3.4')
+        spawn_replica_set_node(
+          root_dir.join('csrs'),
+          base_port + num_mongos,
+          'csrs',
+          common_args + %w(--configsvr),
+        )
 
-      initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
+        initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
+
+        config_db_opt = "csrs/localhost:#{base_port+num_mongos}"
+      else
+        spawn_standalone(root_dir.join('csrs'), base_port + num_mongos,
+          common_args + %w(--configsvr))
+
+        config_db_opt = "localhost:#{base_port+num_mongos}"
+      end
 
       shard_base_port = base_port + num_mongos + 1
 
@@ -236,7 +235,7 @@ module MongoManager
           dir.join('mongos.log').to_s,
           dir.join('mongos.pid').to_s,
           '--port', port.to_s,
-          '--configdb', "csrs/localhost:#{base_port+num_mongos}",
+          '--configdb', config_db_opt,
         ] + server_tls_args + common_args +
           passthrough_args + (options[:mongos_passthrough_args] || [])
         Helper.spawn_mongo(*cmd)
@@ -248,7 +247,19 @@ module MongoManager
       client = Mongo::Client.new(["localhost:#{base_port}"],
         client_tls_options.merge(database: 'admin'))
       1.upto(num_shards) do |shard|
-        shard_str = "shard#{'%02d' % shard}/localhost:#{base_port+num_mongos+shard}"
+        replica_set_name = "shard#{'%02d' % shard}"
+        host = "localhost:#{base_port+num_mongos+shard}"
+        # Old servers (e.g. 2.6) fail if the replica set is not waited for
+        # before trying to add it as a shard.
+        puts("Waiting for replica set at #{host}")
+        shard_client = Mongo::Client.new([host], client_tls_options.merge(
+          replica_set: replica_set_name))
+        begin
+          shard_client.database.command(ping: 1)
+        ensure
+          shard_client.close
+        end
+        shard_str = "#{replica_set_name}/#{host}"
         puts("Adding shard #{shard_str}")
         client.database.command(
           addShard: shard_str,
@@ -351,7 +362,7 @@ module MongoManager
     end
 
     def server_version
-      @server_version ||= begin
+      @server_version ||= Gem::Version.new(begin
         path = mongo_path('mongod')
         if path =~ /\s/
           raise "Path cannot contain spaces: #{path}"
@@ -367,19 +378,13 @@ module MongoManager
         end
 
         $1
-      end
-    end
-
-    def server_42?
-      if @server_42.nil?
-        @server_42 = Gem::Version.new(server_version) >= Gem::Version.new('4.2')
-      end
-      @server_42
+      end)
     end
 
     def server_tls_args
+      server_42 = server_version >= Gem::Version.new('4.2')
       @server_tls_args ||= if options[:tls_mode]
-        if server_42?
+        if server_42
           opt_name = '--tlsMode'
           opt_value = options[:tls_mode]
         else
@@ -388,7 +393,7 @@ module MongoManager
         end
         args = [opt_name, opt_value]
         if options[:tls_certificate_key_file]
-          if server_42?
+          if server_42
             opt_name = '--tlsCertificateKeyFile'
           else
             opt_name = '--sslPEMKeyFile'
@@ -396,7 +401,7 @@ module MongoManager
           args += [opt_name, options[:tls_certificate_key_file]]
         end
         if options[:tls_ca_file]
-          if server_42?
+          if server_42
             opt_name = '--tlsCAFile'
           else
             opt_name = '--sslCAFile'
@@ -420,6 +425,21 @@ module MongoManager
       else
         {}
       end.freeze
+    end
+
+    def spawn_standalone(dir, port, args)
+      puts("Spawn mongod on port #{port}")
+      FileUtils.mkdir_p(dir)
+      cmd = [
+        mongo_path('mongod'),
+        dir.join('mongod.log').to_s,
+        dir.join('mongod.pid').to_s,
+        '--dbpath', dir.to_s,
+        '--port', port.to_s,
+      ] + args + server_tls_args +
+        (options[:mongod_passthrough_args] || []) + passthrough_args
+      Helper.spawn_mongo(*cmd)
+      record_start_command(dir, cmd)
     end
 
     def spawn_replica_set_node(dir, port, replica_set_name, args)

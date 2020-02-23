@@ -153,6 +153,18 @@ describe MongoManager::Main do
 
         it_behaves_like 'parses arguments'
       end
+
+      context 'csrs argument' do
+        let(:cmd_args) do
+          %w(init --csrs 1)
+        end
+
+        let(:expected_options) do
+          {csrs: 1}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
     end
 
     context 'stop' do

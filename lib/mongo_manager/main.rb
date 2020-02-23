@@ -57,6 +57,13 @@ module MongoManager
           options[:mongos] = v.to_i
         end
 
+        opts.on('--csrs NUM', Integer, 'Use a config server replica set with NUM nodes') do |v|
+          unless v.to_i > 0
+            usage("invalid --csrs value: #{v}")
+          end
+          options[:csrs] = v.to_i
+        end
+
         opts.on('--bin-dir DIR', String, 'Path to mongod/mongos binaries') do |v|
           options[:bin_dir] = v
         end
