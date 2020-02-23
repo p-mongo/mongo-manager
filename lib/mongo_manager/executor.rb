@@ -246,7 +246,19 @@ module MongoManager
       client = Mongo::Client.new(["localhost:#{base_port}"],
         client_tls_options.merge(database: 'admin'))
       1.upto(num_shards) do |shard|
-        shard_str = "shard#{'%02d' % shard}/localhost:#{base_port+num_mongos+shard}"
+        replica_set_name = "shard#{'%02d' % shard}"
+        host = "localhost:#{base_port+num_mongos+shard}"
+        # Old servers (e.g. 2.6) fail if the replica set is not waited for
+        # before trying to add it as a shard.
+        puts("Waiting for replica set at #{host}")
+        shard_client = Mongo::Client.new([host], client_tls_options.merge(
+          replica_set: replica_set_name))
+        begin
+          shard_client.database.command(ping: 1)
+        ensure
+          shard_client.close
+        end
+        shard_str = "#{replica_set_name}/#{host}"
         puts("Adding shard #{shard_str}")
         client.database.command(
           addShard: shard_str,
