@@ -133,8 +133,8 @@ describe 'init' do
         {
           dir: dir,
           sharded: 1,
-          mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
-          mongos_passthrough_args: %w(--setParameter enableTestCommands=1),
+          mongod_passthrough_args: %w(--nounixsocket),
+          mongos_passthrough_args: %w(--httpinterface),
         }
       end
 
@@ -147,8 +147,8 @@ describe 'init' do
         pids.each do |pid|
           cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
-          cmdline.should_not include('--setParameter enableTestCommands=1')
+          cmdline.should include('--nounixsocket')
+          cmdline.should_not include('--httpinterface')
         end
 
         pids = Ps.mongos
@@ -157,8 +157,8 @@ describe 'init' do
         pids.each do |pid|
           cmdline = Ps.get_cmdline(pid, 'mongos')
           cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter enableTestCommands=1')
-          cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
+          cmdline.should include('--httpinterface')
+          cmdline.should_not include('--nounixsocket')
         end
       end
     end
@@ -196,9 +196,9 @@ describe 'init' do
         pids.each do |pid|
           cmdline = Ps.get_cmdline(pid, 'mongod')
           cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--tlsMode requireTLS')
-          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
-          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
+          cmdline.should include('--sslMode requireSSL')
+          cmdline.should include('--sslPEMKeyFile spec/support/certificates/server.pem')
+          cmdline.should include('--sslCAFile spec/support/certificates/ca.crt')
         end
 
         pids = Ps.mongos
@@ -207,9 +207,9 @@ describe 'init' do
         pids.each do |pid|
           cmdline = Ps.get_cmdline(pid, 'mongos')
           cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--tlsMode requireTLS')
-          cmdline.should include('--tlsCertificateKeyFile spec/support/certificates/server.pem')
-          cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
+          cmdline.should include('--sslMode requireSSL')
+          cmdline.should include('--sslPEMKeyFile spec/support/certificates/server.pem')
+          cmdline.should include('--sslCAFile spec/support/certificates/ca.crt')
         end
       end
     end
