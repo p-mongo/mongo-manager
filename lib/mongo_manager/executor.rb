@@ -204,7 +204,8 @@ module MongoManager
 
         config_db_opt = "csrs/localhost:#{base_port+num_mongos}"
       else
-        spawn_standalone(root_dir.join('csrs'), base_port + num_mongos, %w(--configsvr))
+        spawn_standalone(root_dir.join('csrs'), base_port + num_mongos,
+          common_args + %w(--configsvr))
 
         config_db_opt = "localhost:#{base_port+num_mongos}"
       end
