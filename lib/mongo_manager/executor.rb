@@ -1,5 +1,6 @@
-require 'fileutils'
-require 'pathname'
+autoload :FileUtils, 'fileutils'
+autoload :Pathname, 'pathname'
+autoload :Find, 'find'
 
 module MongoManager
   class Executor
@@ -35,6 +36,32 @@ module MongoManager
         init_rs
       else
         init_standalone
+      end
+    rescue => e
+      log_paths = []
+      Find.find(root_dir) do |path|
+        if path.end_with?('.log')
+          log_paths << path
+        end
+      end
+      if log_paths.any?
+        log_paths.sort!
+        msg = "#{e.class}: #{e}"
+        log_paths.each do |log_path|
+          excerpt = Helper.excerpt_log_file(log_path)
+          msg = "#{msg}\n\n#{excerpt}"
+        end
+        begin
+          new_exc = e.class.new(msg)
+        rescue
+          # If we cannot create an exception instance of the same class
+          # with the augmented message, reraise the original exception
+          raise e
+        end
+        new_exc.set_backtrace(e.backtrace)
+        raise new_exc
+      else
+        raise
       end
     end
 
