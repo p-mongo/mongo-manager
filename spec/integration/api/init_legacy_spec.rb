@@ -141,15 +141,22 @@ describe 'init' do
       it 'passes the arguments' do
         executor.init
 
-        pids = Ps.mongod
+        pids = Ps.mongod.sort
         pids.length.should == 2
 
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--nounixsocket')
-          cmdline.should_not include('--httpinterface')
-        end
+        # config server
+        pid = pids.shift
+        cmdline = Ps.get_cmdline(pid, 'mongod')
+        cmdline.strip.split("\n").length.should == 1
+        cmdline.should_not include('--nounixsocket')
+        cmdline.should_not include('--httpinterface')
+
+        # shard node
+        pid = pids.shift
+        cmdline = Ps.get_cmdline(pid, 'mongod')
+        cmdline.strip.split("\n").length.should == 1
+        cmdline.should include('--nounixsocket')
+        cmdline.should_not include('--httpinterface')
 
         pids = Ps.mongos
         pids.length.should == 1
