@@ -86,5 +86,12 @@ initiate the replica set.
 ## Sharded Clusters
 
 MongoDB 2.6 requires that the config server is a standalone and not a
-replica set. mlaunch creates a standalone config server for MongoDB 3.2 and
-lower, and replica sets for MongoDB 3.4 and higher.
+replica set. A TBD version of MongoDB requires that config server is a replica
+set and not a standalone.
+
+mlaunch creates a standalone config server for MongoDB 3.2 and lower,
+and replica sets for MongoDB 3.4 and higher. mongo-manager follows this
+behavoir, creating replica set config servers for MongoDB 3.4 and higher.
+
+Replica set config server [require WiredTiger storage
+engine](https://docs.mongodb.com/v4.0/core/sharded-cluster-config-servers/#replica-set-config-servers).

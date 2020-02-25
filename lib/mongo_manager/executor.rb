@@ -157,7 +157,7 @@ module MongoManager
 
     def init_standalone
       dir = root_dir.join('standalone')
-      spawn_standalone(dir, base_port, [])
+      spawn_standalone(dir, base_port, mongod_passthrough_args)
 
       if options[:username]
         client = Mongo::Client.new(["localhost:#{base_port}"],
@@ -168,7 +168,7 @@ module MongoManager
 
         do_stop
 
-        spawn_standalone(dir, base_port, %w(--auth))
+        spawn_standalone(dir, base_port, %w(--auth) + mongod_passthrough_args)
       end
 
       write_config
@@ -181,7 +181,8 @@ module MongoManager
         port = base_port - 1 + i
         dir = root_dir.join("rs#{i}")
 
-        spawn_replica_set_node(dir, port, options[:replica_set], common_args)
+        spawn_replica_set_node(dir, port, options[:replica_set],
+          common_args + mongod_passthrough_args)
       end
 
       write_config
@@ -224,7 +225,7 @@ module MongoManager
           root_dir.join('csrs'),
           base_port + num_mongos,
           'csrs',
-          common_args + %w(--configsvr),
+          common_args + %w(--configsvr) + config_server_passthrough_args,
         )
 
         initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
@@ -232,7 +233,7 @@ module MongoManager
         config_db_opt = "csrs/localhost:#{base_port+num_mongos}"
       else
         spawn_standalone(root_dir.join('csrs'), base_port + num_mongos,
-          common_args + %w(--configsvr))
+          common_args + %w(--configsvr) + config_server_passthrough_args)
 
         config_db_opt = "localhost:#{base_port+num_mongos}"
       end
@@ -246,7 +247,7 @@ module MongoManager
           root_dir.join(shard_name),
           port,
           shard_name,
-          common_args + %w(--shardsvr),
+          common_args + %w(--shardsvr) + mongod_passthrough_args,
         )
 
         initiate_replica_set(%W(localhost:#{port}), shard_name)
@@ -362,6 +363,18 @@ module MongoManager
       options[:passthrough_args] || []
     end
 
+    def mongod_passthrough_args
+      options[:mongod_passthrough_args] || []
+    end
+
+    def mongos_passthrough_args
+      options[:mongos_passthrough_args] || []
+    end
+
+    def config_server_passthrough_args
+      options[:config_server_passthrough_args] || []
+    end
+
     def sharded?
       !!(options[:mongos] || options[:sharded])
     end
@@ -463,8 +476,7 @@ module MongoManager
         dir.join('mongod.pid').to_s,
         '--dbpath', dir.to_s,
         '--port', port.to_s,
-      ] + args + server_tls_args +
-        (options[:mongod_passthrough_args] || []) + passthrough_args
+      ] + args + server_tls_args + passthrough_args
       Helper.spawn_mongo(*cmd)
       record_start_command(dir, cmd)
     end
@@ -479,8 +491,7 @@ module MongoManager
         '--dbpath', dir.to_s,
         '--port', port.to_s,
         '--replSet', replica_set_name,
-      ] + args + server_tls_args +
-        (options[:mongod_passthrough_args] || []) + passthrough_args
+      ] + args + server_tls_args + passthrough_args
       Helper.spawn_mongo(*cmd)
       record_start_command(dir, cmd)
     end

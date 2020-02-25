@@ -124,6 +124,20 @@ describe 'init' do
         end
       end
     end
+
+    context 'mmapv1' do
+      let(:dir) { '/db/standalone-mmapv1' }
+
+      let(:options) do
+        {
+          dir: dir,
+          bin_dir: '/opt/mongodb/4.0/bin',
+          mongod_passthrough_args: %w(--storageEngine=mmapv1),
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+    end
   end
 
   context 'replica set' do
@@ -296,15 +310,22 @@ describe 'init' do
       it 'passes the arguments' do
         executor.init
 
-        pids = Ps.mongod
+        pids = Ps.mongod.sort
         pids.length.should == 2
 
-        pids.each do |pid|
-          cmdline = Ps.get_cmdline(pid, 'mongod')
-          cmdline.strip.split("\n").length.should == 1
-          cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
-          cmdline.should_not include('--setParameter enableTestCommands=1')
-        end
+        # config server
+        pid = pids.shift
+        cmdline = Ps.get_cmdline(pid, 'mongod')
+        cmdline.strip.split("\n").length.should == 1
+        cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
+        cmdline.should_not include('--setParameter enableTestCommands=1')
+
+        # shard node
+        pid = pids.shift
+        cmdline = Ps.get_cmdline(pid, 'mongod')
+        cmdline.strip.split("\n").length.should == 1
+        cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
+        cmdline.should_not include('--setParameter enableTestCommands=1')
 
         pids = Ps.mongos
         pids.length.should == 1
@@ -367,6 +388,27 @@ describe 'init' do
           cmdline.should include('--tlsCAFile spec/support/certificates/ca.crt')
         end
       end
+    end
+
+    context 'mmapv1' do
+      let(:dir) { '/tmp/sharded-mmapv1' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 1,
+          bin_dir: '/opt/mongodb/4.0/bin',
+          mongod_passthrough_args: %w(--storageEngine=mmapv1 --smallfiles --noprealloc),
+        }
+      end
+
+      let(:client_options) do
+        base_client_options.merge(
+          retry_reads: false, retry_writes: false,
+        )
+      end
+
+      it_behaves_like 'starts and stops'
     end
   end
 end
