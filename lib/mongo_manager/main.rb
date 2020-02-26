@@ -95,9 +95,14 @@ module MongoManager
           options[:tls_ca_file] = v
         end
 
-        opts.on('--mongod-arg ARG', String, 'Pass an argument to mongod') do |v|
+        opts.on('--mongod-arg ARG', String, 'Pass an argument to non-config server mongod') do |v|
           options[:mongod_passthrough_args] ||= []
           options[:mongod_passthrough_args] << v
+        end
+
+        opts.on('--cs-arg ARG', String, 'Pass an argument to config server mongod') do |v|
+          options[:config_server_passthrough_args] ||= []
+          options[:config_server_passthrough_args] << v
         end
 
         opts.on('--mongos-arg ARG', String, 'Pass an argument to mongos') do |v|
