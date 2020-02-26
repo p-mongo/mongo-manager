@@ -154,6 +154,18 @@ describe MongoManager::Main do
         it_behaves_like 'parses arguments'
       end
 
+      context 'config server argument passthrough' do
+        let(:cmd_args) do
+          %w(init --cs-arg foo)
+        end
+
+        let(:expected_options) do
+          {config_server_passthrough_args: %w(foo)}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
+
       context 'csrs argument' do
         let(:cmd_args) do
           %w(init --csrs 1)

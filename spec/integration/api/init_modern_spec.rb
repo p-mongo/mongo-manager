@@ -304,6 +304,7 @@ describe 'init' do
           sharded: 1,
           mongod_passthrough_args: %w(--setParameter diagnosticDataCollectionEnabled=false),
           mongos_passthrough_args: %w(--setParameter enableTestCommands=1),
+          config_server_passthrough_args: %w(--logappend),
         }
       end
 
@@ -317,6 +318,7 @@ describe 'init' do
         pid = pids.shift
         cmdline = Ps.get_cmdline(pid, 'mongod')
         cmdline.strip.split("\n").length.should == 1
+        cmdline.should include('--logappend')
         cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
         cmdline.should_not include('--setParameter enableTestCommands=1')
 
@@ -326,6 +328,7 @@ describe 'init' do
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--setParameter diagnosticDataCollectionEnabled=false')
         cmdline.should_not include('--setParameter enableTestCommands=1')
+        cmdline.should_not include('--logappend')
 
         pids = Ps.mongos
         pids.length.should == 1
@@ -335,6 +338,7 @@ describe 'init' do
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--setParameter enableTestCommands=1')
           cmdline.should_not include('--setParameter diagnosticDataCollectionEnabled=false')
+          cmdline.should_not include('--logappend')
         end
       end
     end

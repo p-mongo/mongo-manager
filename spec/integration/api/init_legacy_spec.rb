@@ -135,6 +135,7 @@ describe 'init' do
           sharded: 1,
           mongod_passthrough_args: %w(--nounixsocket),
           mongos_passthrough_args: %w(--httpinterface),
+          config_server_passthrough_args: %w(--logappend),
         }
       end
 
@@ -148,6 +149,7 @@ describe 'init' do
         pid = pids.shift
         cmdline = Ps.get_cmdline(pid, 'mongod')
         cmdline.strip.split("\n").length.should == 1
+        cmdline.should include('--logappend')
         cmdline.should_not include('--nounixsocket')
         cmdline.should_not include('--httpinterface')
 
@@ -157,6 +159,7 @@ describe 'init' do
         cmdline.strip.split("\n").length.should == 1
         cmdline.should include('--nounixsocket')
         cmdline.should_not include('--httpinterface')
+        cmdline.should_not include('--logappend')
 
         pids = Ps.mongos
         pids.length.should == 1
@@ -166,6 +169,7 @@ describe 'init' do
           cmdline.strip.split("\n").length.should == 1
           cmdline.should include('--httpinterface')
           cmdline.should_not include('--nounixsocket')
+          cmdline.should_not include('--logappend')
         end
       end
     end
