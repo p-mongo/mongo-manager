@@ -59,7 +59,7 @@ describe MongoManager::Main do
 
         context 'auth options' do
           let(:cmd_args) do
-            %w(init --user foo --password bar)
+            %w(init --username foo --password bar)
           end
 
           let(:expected_options) do
