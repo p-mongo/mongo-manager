@@ -15,6 +15,14 @@ module MongoManager
         raise ArgumentError, ':username and :password must be given together'
       end
 
+      if options[:arbiter] && !options[:replica_set]
+        raise ArgumentError, ':arbiter option requires :replica_set'
+      end
+
+      if options[:data_bearing_nodes] && !options[:replica_set]
+        raise ArgumentError, ':data_bearing_nodes option requires :replica_set'
+      end
+
       @client_log_level = :warn
       Mongo::Logger.level = client_log_level
 
@@ -152,7 +160,6 @@ module MongoManager
 
     def read_config
       @config = YAML.load(File.read(File.join(root_dir, 'mongo-manager.yml')))
-      p config
     end
 
     def init_standalone
@@ -177,20 +184,30 @@ module MongoManager
     def init_rs
       maybe_create_key
 
-      1.upto(options[:nodes] || 3) do |i|
+      server_addresses = []
+      1.upto(num_data_bearing_nodes) do |i|
         port = base_port - 1 + i
         dir = root_dir.join("rs#{i}")
 
         spawn_replica_set_node(dir, port, options[:replica_set],
           common_args + mongod_passthrough_args)
+
+        server_addresses << "localhost:#{port}"
+      end
+
+      if options[:arbiter]
+        port = base_port + num_data_bearing_nodes
+        dir = root_dir.join('arbiter')
+
+        spawn_replica_set_node(dir, port, options[:replica_set],
+          common_args + mongod_passthrough_args)
+
+        arbiter_address = "localhost:#{port}"
       end
 
       write_config
 
-      initiate_replica_set(
-        %W(localhost:#{base_port} localhost:#{base_port+1} localhost:#{base_port+2}),
-        options[:replica_set],
-      )
+      initiate_replica_set(server_addresses, options[:replica_set], arbiter: arbiter_address)
 
       puts("Waiting for replica set to initialize")
       client = Mongo::Client.new(["localhost:#{base_port}"],
@@ -228,7 +245,7 @@ module MongoManager
           common_args + %w(--configsvr) + config_server_passthrough_args,
         )
 
-        initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', configsvr: true)
+        initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', config_server: true)
 
         config_db_opt = "csrs/localhost:#{base_port+num_mongos}"
       else
@@ -320,12 +337,24 @@ module MongoManager
         members << { _id: index, host: host }
       end
 
+      if opts[:arbiter]
+        members << {_id: hosts.length, host: opts[:arbiter], arbiterOnly: true}
+      end
+
       rs_config = {
         _id: replica_set_name,
         members: members,
-      }.update(opts)
+      }
 
-      puts("Initiating replica set #{replica_set_name}/#{hosts.join(',')}")
+      if opts[:config_server]
+        rs_config[:configsvr] = true
+      end
+
+      msg = "Initiating replica set #{replica_set_name}/#{hosts.join(',')}"
+      if opts[:arbiter]
+        msg += "+#{opts[:arbiter]}"
+      end
+      puts(msg)
       client = Mongo::Client.new([hosts.first], client_tls_options.merge(
         connect: :direct))
       begin
@@ -391,6 +420,16 @@ module MongoManager
         raise ArgumentError, "Not in a sharded topology"
       end
       options[:mongos] || 1
+    end
+
+    def num_data_bearing_nodes
+      options[:data_bearing_nodes] || begin
+        if options[:arbiter]
+          2
+        else
+          3
+        end
+      end
     end
 
     def mongo_path(binary)

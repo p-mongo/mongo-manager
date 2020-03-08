@@ -43,6 +43,14 @@ module MongoManager
           options[:replica_set] = v
         end
 
+        opts.on('--arbiter', Integer, 'Add an arbiter to each replica set (except config server)') do |v|
+          options[:arbiter] = true
+        end
+
+        opts.on('--nodes NUM', Integer, 'Use the specified number of data-bearing nodes in each replica set (except config server)') do |v|
+          options[:data_bearing_nodes] = v
+        end
+
         opts.on('--sharded NUM', Integer, 'Create a sharded cluster with NUM shards') do |v|
           unless v.to_i > 0
             usage("invalid --sharded value: #{v}")

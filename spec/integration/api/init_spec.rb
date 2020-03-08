@@ -68,6 +68,81 @@ describe 'init' do
 
     it_behaves_like 'starts and stops'
 
+    context 'with arbiter' do
+      let(:client_options) do
+        base_client_options.merge(
+          replica_set: 'foo',
+        )
+      end
+
+      let(:dir) { '/db/rs-arbiter' }
+
+      let(:options) do
+        {
+          dir: dir,
+          replica_set: 'foo',
+          arbiter: true,
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'provisions two mongod and one arbiter' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 3
+
+        client.cluster.scan!
+        client.cluster.send(:servers_list).map(&:address).map(&:seed).sort.should ==
+          %w(localhost:27017 localhost:27018 localhost:27019)
+
+
+        puts client.cluster.summary
+        server = client.cluster.servers_list.detect { |server| server.address.port == 27017 }
+        # On older server versions some of the servers do not get
+        # immediately initialized.
+        server.summary.should =~ /PRIMARY|SECONDARY|OTHER/
+        server = client.cluster.servers_list.detect { |server| server.address.port == 27018 }
+        server.summary.should =~ /PRIMARY|SECONDARY|OTHER/
+        server = client.cluster.servers_list.detect { |server| server.address.port == 27019 }
+        server.summary.should =~ /ARBITER/
+      end
+    end
+
+    context 'with specified number of nodes' do
+      let(:client_options) do
+        base_client_options.merge(
+          replica_set: 'foo',
+        )
+      end
+
+      let(:dir) { '/db/rs-nodes' }
+
+      let(:options) do
+        {
+          dir: dir,
+          replica_set: 'foo',
+          data_bearing_nodes: 1,
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'provisions one mongod' do
+        executor.init
+
+        pids = Ps.mongod
+        pids.length.should == 1
+
+        client.cluster.scan!
+        client.cluster.send(:servers_list).map(&:address).map(&:seed).sort.should ==
+          %w(localhost:27017)
+
+        client.database.command(ping: 1)
+      end
+    end
+
     context 'with auth' do
       let(:client_options) do
         base_client_options.merge(
