@@ -97,14 +97,11 @@ describe 'init' do
         client.cluster.send(:servers_list).map(&:address).map(&:seed).sort.should ==
           %w(localhost:27017 localhost:27018 localhost:27019)
 
-
         puts client.cluster.summary
         server = client.cluster.servers_list.detect { |server| server.address.port == 27017 }
-        # On older server versions some of the servers do not get
-        # immediately initialized.
-        server.summary.should =~ /PRIMARY|SECONDARY|OTHER/
+        server.summary.should =~ /PRIMARY|SECONDARY/
         server = client.cluster.servers_list.detect { |server| server.address.port == 27018 }
-        server.summary.should =~ /PRIMARY|SECONDARY|OTHER/
+        server.summary.should =~ /PRIMARY|SECONDARY/
         server = client.cluster.servers_list.detect { |server| server.address.port == 27019 }
         server.summary.should =~ /ARBITER/
       end

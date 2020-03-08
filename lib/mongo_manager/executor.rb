@@ -355,12 +355,27 @@ module MongoManager
         msg += "+#{opts[:arbiter]}"
       end
       puts(msg)
-      client = Mongo::Client.new([hosts.first], client_tls_options.merge(
-        connect: :direct))
-      begin
+      direct_client(hosts.first) do |client|
         client.database.command(replSetInitiate: rs_config)
-      ensure
-        client.close
+      end
+
+      deadline = Time.now + 30
+      hosts.each do |host|
+        puts "Waiting for #{host} to provision"
+        direct_client(host) do |client|
+          loop do
+            server = client.cluster.servers_list.first
+            puts server.summary
+            if server.primary? || server.secondary?
+              break
+            end
+            if Time.now > deadline
+              raise "Node #{server.summary} failed to provision"
+            end
+            sleep 1
+            server.scan!
+          end
+        end
       end
     end
 
@@ -541,6 +556,16 @@ module MongoManager
       config[:settings][dir] ||= {}
       config[:settings][dir][:start_cmd] = cmd
       config[:db_dirs] << dir unless config[:db_dirs].include?(dir)
+    end
+
+    def direct_client(address_str)
+      client = Mongo::Client.new([address_str], client_tls_options.merge(
+        connect: :direct))
+      begin
+        yield client
+      ensure
+        client.close
+      end
     end
   end
 end
