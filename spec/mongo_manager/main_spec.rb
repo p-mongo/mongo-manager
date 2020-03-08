@@ -106,6 +106,30 @@ describe MongoManager::Main do
         it_behaves_like 'parses arguments'
       end
 
+      context 'arbiter' do
+        let(:cmd_args) do
+          %w(init --arbiter)
+        end
+
+        let(:expected_options) do
+          {arbiter: true}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
+
+      context 'node count' do
+        let(:cmd_args) do
+          %w(init --nodes 2)
+        end
+
+        let(:expected_options) do
+          {data_bearing_nodes: 2}
+        end
+
+        it_behaves_like 'parses arguments'
+      end
+
       context 'sharded' do
         let(:cmd_args) do
           %w(init --sharded 2)

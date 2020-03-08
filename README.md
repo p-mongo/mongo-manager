@@ -45,15 +45,15 @@ following ports by default:
 
 - 27017: `mongos` 1
 - 27018: `mongos` 2
-- 27019: config server node 1
-- 27020: config server node 2
-- 27021: config server node 3
-- 27022: shard 1 node 1
-- 27023: shard 1 node 2
-- 27023: shard 1 node 3
-- 27024: shard 2 node 1
-- 27025: shard 2 node 2
-- 27026: shard 2 node 3
+- 27019: config server node 1 `mongod`
+- 27020: config server node 2 `mongod`
+- 27021: config server node 3 `mongod`
+- 27022: shard 1 node 1 `mongod`
+- 27023: shard 1 node 2 `mongod`
+- 27023: shard 1 node 3 `mongod`
+- 27024: shard 2 node 1 `mongod`
+- 27025: shard 2 node 2 `mongod`
+- 27026: shard 2 node 3 `mongod`
 
 Note that by default, `mongocryptd` listens on port 27020. This makes it
 incompatible with most sharded cluster deployments that start on port 27017.
@@ -66,9 +66,19 @@ generally be started on a non-default port.
 ### Topology
 
 - `--replica-set NAME`: create a replica set with the specified name.
+- `--nodes NUM`: specify the number of data-bearing servers in the replica set.
+- `--arbiter`: add an arbiter to the replica set.
 - `--sharded NUM`: create a sharded cluster with NUM shards. By default,
 each shard is a standalone server.
 - `--mongos NUM`: create a sharded cluster with NUM mongos.
+
+If `--replica-set` is given and neither  `--nodes` nor `--arbiter`` are given,
+a 3-node replica set is created (the PSS or Primary-Secondary-Secondary
+configuration). If `--arbiter` is given but `--nodes` is not given, the
+replica set will consist of one arbiter and two data-bearing nodes (the PSA or
+Primary-Secondary-Arbiter configuration). Use `--nodes` to specify how many
+data-bearing nodes to create. It is an error to specify `--nodes` or
+`--arbiter` options without also providing the `--replica-set` option.
 
 ## License
 
