@@ -75,11 +75,11 @@ module MongoManager
           options[:base_port] = v
         end
 
-        opts.on('--user USER', String, 'Enable auth, add USER as a root user') do |v|
+        opts.on('--username USER', String, 'Enable auth, add USER as a root user') do |v|
           options[:username] = v
         end
 
-        opts.on('--password PASS', String, 'Specify password for the user defined with --user') do |v|
+        opts.on('--password PASS', String, 'Specify password for the user defined with --username') do |v|
           options[:password] = v
         end
 
