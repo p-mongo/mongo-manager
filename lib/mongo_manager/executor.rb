@@ -163,7 +163,7 @@ module MongoManager
     end
 
     def init_standalone
-      dir = root_dir.join('standalone')
+      dir = root_dir.join("standalone-#{base_port}")
       spawn_standalone(dir, base_port, mongod_passthrough_args)
 
       if options[:username]
@@ -187,7 +187,7 @@ module MongoManager
       server_addresses = []
       1.upto(num_data_bearing_nodes) do |i|
         port = base_port - 1 + i
-        dir = root_dir.join("rs#{i}")
+        dir = root_dir.join("rs#{'%02d' % i}-#{port}")
 
         spawn_replica_set_node(dir, port, options[:replica_set],
           common_args + mongod_passthrough_args)
@@ -197,7 +197,7 @@ module MongoManager
 
       if options[:arbiter]
         port = base_port + num_data_bearing_nodes
-        dir = root_dir.join('arbiter')
+        dir = root_dir.join("arbiter-#{port}")
 
         spawn_replica_set_node(dir, port, options[:replica_set],
           common_args + mongod_passthrough_args)
@@ -237,9 +237,11 @@ module MongoManager
     def init_sharded
       maybe_create_key
 
+      cs_dir = root_dir.join("csrs-#{base_port + num_mongos}")
+
       if options[:csrs] || server_version >= Gem::Version.new('3.4')
         spawn_replica_set_node(
-          root_dir.join('csrs'),
+          cs_dir,
           base_port + num_mongos,
           'csrs',
           common_args + %w(--configsvr) + config_server_passthrough_args,
@@ -249,7 +251,7 @@ module MongoManager
 
         config_db_opt = "csrs/localhost:#{base_port+num_mongos}"
       else
-        spawn_standalone(root_dir.join('csrs'), base_port + num_mongos,
+        spawn_standalone(cs_dir, base_port + num_mongos,
           common_args + %w(--configsvr) + config_server_passthrough_args)
 
         config_db_opt = "localhost:#{base_port+num_mongos}"
@@ -261,7 +263,7 @@ module MongoManager
         shard_name = 'shard%02d' % shard
         port = shard_base_port - 1 + shard
         spawn_replica_set_node(
-          root_dir.join(shard_name),
+          root_dir.join("#{shard_name}-#{port}"),
           port,
           shard_name,
           common_args + %w(--shardsvr) + mongod_passthrough_args,
@@ -272,7 +274,7 @@ module MongoManager
 
       1.upto(num_mongos) do |mongos|
         port = base_port - 1 + mongos
-        dir = root_dir.join('router%02d' % mongos)
+        dir = root_dir.join("router%02d-#{port}" % mongos)
         puts("Spawn mongos on port #{port}")
         FileUtils.mkdir(dir)
         cmd = [
