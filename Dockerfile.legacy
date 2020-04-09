@@ -9,15 +9,14 @@ RUN apt-get install -y python-software-properties
 # https://stackoverflow.com/questions/18490591/how-to-install-ruby-2-on-ubuntu-without-rvm
 RUN apt-add-repository ppa:brightbox/ruby-ng
 
-RUN apt-get update
-RUN apt-get install -y ruby2.4 ruby2.4-dev make gcc curl libsnmp15 procps
+RUN apt-get update && \
+  apt-get install -y git ruby2.4 ruby2.4-dev make gcc curl libsnmp15 procps
 
 RUN mkdir /opt/mongodb
 
-RUN curl -fLo mongodb-linux-x86_64-enterprise-ubuntu1204-2.6.12.tgz \
-  https://downloads.mongodb.com/linux/mongodb-linux-x86_64-enterprise-ubuntu1204-2.6.12.tgz
-RUN tar xf mongodb-linux-x86_64-enterprise-ubuntu1204-2.6.12.tgz
-RUN mv mongo*/ /opt/mongodb/2.6
+RUN curl -fL https://downloads.mongodb.com/linux/mongodb-linux-x86_64-enterprise-ubuntu1204-2.6.12.tgz \
+  | tar xfz - && \
+  mv mongo*/ /opt/mongodb/2.6
 
 ENV PATH=/opt/mongodb/2.6/bin:$PATH
 

@@ -17,3 +17,5 @@ group :test do
     gem 'byebug'
   end
 end
+
+gem 'mongo', git: 'https://github.com/mongodb/mongo-ruby-driver'

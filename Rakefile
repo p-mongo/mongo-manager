@@ -32,12 +32,12 @@ task test: %w(test:unit test:api test:cmd test:legacy)
 namespace :test do
   desc 'Run unit tests'
   task unit: :build do
-    run(TEST_COMMAND + %w(rspec -f Rfc::Aif spec/mongo_manager))
+    run(TEST_COMMAND + %w(bundle exec rspec -f Rfc::Aif spec/mongo_manager))
   end
 
   desc 'Run integration tests for the library'
   task api: :build do
-    run(TEST_COMMAND + %w(rspec -f Rfc::Aif
+    run(TEST_COMMAND + %w(bundle exec rspec -f Rfc::Aif
       spec/integration/api/init_spec.rb
       spec/integration/api/init_modern_spec.rb
     ))
@@ -45,12 +45,12 @@ namespace :test do
 
   desc 'Run integration tests for the command-line tool'
   task cmd: :build do
-    run(TEST_COMMAND + %w(rspec -f Rfc::Aif spec/integration/cmd))
+    run(TEST_COMMAND + %w(bundle exec rspec -f Rfc::Aif spec/integration/cmd))
   end
 
   desc 'Run integration tests for the library with legacy servers'
   task legacy: 'build:legacy' do
-    run(LEGACY_TEST_COMMAND + %w(rspec -f Rfc::Aif
+    run(LEGACY_TEST_COMMAND + %w(bundle exec rspec -f Rfc::Aif
       spec/integration/api/init_spec.rb
       spec/integration/api/init_legacy_spec.rb
     ))
