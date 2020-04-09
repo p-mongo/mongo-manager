@@ -13,7 +13,7 @@ module MongoManager
       end
     end
 
-    def spawn_mongo(bin_path, log_path, pid_file_path, *args)
+    def spawn_mongo(bin_path:, log_path:, pid_file_path:, args:)
       expanded_cmd = [
         bin_path,
         '--logpath', log_path,

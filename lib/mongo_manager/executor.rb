@@ -82,8 +82,8 @@ module MongoManager
 
     private def do_start
       config[:db_dirs].each do |db_dir|
-        cmd = config[:settings][db_dir][:start_cmd]
-        Helper.spawn_mongo(*cmd)
+        opts = config[:settings][db_dir][:start_options]
+        Helper.spawn_mongo(**opts)
       end
     end
 
@@ -97,7 +97,8 @@ module MongoManager
       pids = {}
 
       config[:db_dirs].reverse.each do |db_dir|
-        binary_basename = File.basename(config[:settings][db_dir][:start_cmd].first)
+        binary_path = config[:settings][db_dir][:start_options][:bin_path]
+        binary_basename = File.basename(binary_path)
         pid_file_path = File.join(db_dir, "#{binary_basename}.pid")
         if File.exist?(pid_file_path)
           pid = File.read(pid_file_path).strip.to_i
@@ -130,7 +131,8 @@ module MongoManager
     private
 
     def do_wait(db_dir, pid)
-      binary_basename = File.basename(config[:settings][db_dir][:start_cmd].first)
+      binary_path = config[:settings][db_dir][:start_options][:bin_path]
+      binary_basename = File.basename(binary_path)
       Helper.wait_for_pid(db_dir, pid, 15, binary_basename)
     end
 
@@ -321,16 +323,18 @@ module MongoManager
         dir = root_dir.join("router%02d-#{port}" % mongos)
         puts("Spawn mongos on port #{port}")
         FileUtils.mkdir(dir)
-        cmd = [
-          mongo_path('mongos'),
-          dir.join('mongos.log').to_s,
-          dir.join('mongos.pid').to_s,
-          '--port', port.to_s,
-          '--configdb', config_db_opt,
-        ] + server_tls_args + common_args +
-          passthrough_args + (options[:mongos_passthrough_args] || [])
-        Helper.spawn_mongo(*cmd)
-        record_start_command(dir, cmd)
+        opts = {
+          bin_path: mongo_path('mongos'),
+          log_path: dir.join('mongos.log').to_s,
+          pid_file_path: dir.join('mongos.pid').to_s,
+          args: [
+            '--port', port.to_s,
+            '--configdb', config_db_opt,
+          ] + server_tls_args + common_args +
+            passthrough_args + (options[:mongos_passthrough_args] || []),
+        }
+        Helper.spawn_mongo(**opts)
+        record_start_command(dir, opts)
       end
 
       write_config
@@ -582,37 +586,41 @@ module MongoManager
     def spawn_standalone(dir, port, args)
       puts("Spawn mongod on port #{port}")
       FileUtils.mkdir_p(dir)
-      cmd = [
-        mongo_path('mongod'),
-        dir.join('mongod.log').to_s,
-        dir.join('mongod.pid').to_s,
-        '--dbpath', dir.to_s,
-        '--port', port.to_s,
-      ] + args + server_tls_args + passthrough_args
-      Helper.spawn_mongo(*cmd)
-      record_start_command(dir, cmd)
+      opts = {
+        bin_path: mongo_path('mongod'),
+        log_path: dir.join('mongod.log').to_s,
+        pid_file_path: dir.join('mongod.pid').to_s,
+        args: [
+          '--dbpath', dir.to_s,
+          '--port', port.to_s,
+        ] + args + server_tls_args + passthrough_args,
+      }
+      Helper.spawn_mongo(**opts)
+      record_start_command(dir, opts)
     end
 
     def spawn_replica_set_node(dir, port, replica_set_name, args)
       puts("Spawn mongod on port #{port}")
       FileUtils.mkdir(dir)
-      cmd = [
-        mongo_path('mongod'),
-        dir.join('mongod.log').to_s,
-        dir.join('mongod.pid').to_s,
-        '--dbpath', dir.to_s,
-        '--port', port.to_s,
-        '--replSet', replica_set_name,
-      ] + args + server_tls_args + passthrough_args
-      Helper.spawn_mongo(*cmd)
-      record_start_command(dir, cmd)
+      opts = {
+        bin_path: mongo_path('mongod'),
+        log_path: dir.join('mongod.log').to_s,
+        pid_file_path: dir.join('mongod.pid').to_s,
+        args: [
+          '--dbpath', dir.to_s,
+          '--port', port.to_s,
+          '--replSet', replica_set_name,
+        ] + args + server_tls_args + passthrough_args,
+      }
+      Helper.spawn_mongo(**opts)
+      record_start_command(dir, opts)
     end
 
-    def record_start_command(dir, cmd)
+    def record_start_command(dir, opts)
       dir = dir.to_s
       config[:settings] ||= {}
       config[:settings][dir] ||= {}
-      config[:settings][dir][:start_cmd] = cmd
+      config[:settings][dir][:start_options] = opts
       config[:db_dirs] << dir unless config[:db_dirs].include?(dir)
     end
 
