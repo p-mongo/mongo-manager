@@ -414,5 +414,30 @@ describe 'init' do
 
       it_behaves_like 'starts and stops'
     end
+
+    context 'sharded replica set' do
+      let(:dir) { '/tmp/sharded-rs' }
+
+      let(:options) do
+        {
+          dir: dir,
+          sharded: 1,
+          replica_set: 'foo',
+          data_bearing_nodes: 3,
+        }
+      end
+
+      it_behaves_like 'starts and stops'
+
+      it 'creates the proper number of servers' do
+        executor.init
+
+        Utils.server_type(27017).should == :sharded
+        %i(primary secondary).should include(Utils.server_type(27018))
+        %i(primary secondary).should include(Utils.server_type(27019))
+        %i(primary secondary).should include(Utils.server_type(27020))
+        Utils.server_type(27021).should == :primary
+      end
+    end
   end
 end

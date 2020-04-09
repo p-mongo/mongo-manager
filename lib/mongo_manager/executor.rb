@@ -1,6 +1,7 @@
 autoload :FileUtils, 'fileutils'
 autoload :Pathname, 'pathname'
 autoload :Find, 'find'
+autoload :Byebug, 'byebug'
 
 module MongoManager
   class Executor
@@ -184,51 +185,67 @@ module MongoManager
     def init_rs
       maybe_create_key
 
+      do_init_rs(
+        base_port: base_port,
+        dir_proc: lambda { |index, port| "rs#{'%02d' % index}-#{port}" },
+        arbiter_dir_proc: lambda { |port| "arbiter-#{port}" },
+        replica_set_name: options[:replica_set],
+      ) do |client|
+        if options[:username]
+          create_user(client)
+          client.close
+
+          stop
+          start
+
+          client = Mongo::Client.new(["localhost:#{base_port}"],
+            client_tls_options.merge(
+              replica_set: options[:replica_set], database: 'admin',
+              user: options[:username], password: options[:password],
+            ),
+          )
+          client.database.command(ping: 1)
+          client.close
+        end
+      end
+    end
+
+    def do_init_rs(base_port:, dir_proc:, arbiter_dir_proc:, replica_set_name:,
+      mongod_args: []
+    )
       server_addresses = []
       1.upto(num_data_bearing_nodes) do |i|
         port = base_port - 1 + i
-        dir = root_dir.join("rs#{'%02d' % i}-#{port}")
+        dir = root_dir.join(dir_proc.call(i, port))
 
-        spawn_replica_set_node(dir, port, options[:replica_set],
-          common_args + mongod_passthrough_args)
+        spawn_replica_set_node(dir, port, replica_set_name,
+          common_args + mongod_args + mongod_passthrough_args)
 
         server_addresses << "localhost:#{port}"
       end
 
       if options[:arbiter]
         port = base_port + num_data_bearing_nodes
-        dir = root_dir.join("arbiter-#{port}")
+        dir = root_dir.join(arbiter_dir_proc.call(port))
 
-        spawn_replica_set_node(dir, port, options[:replica_set],
-          common_args + mongod_passthrough_args)
+        spawn_replica_set_node(dir, port, replica_set_name,
+          common_args + mongod_args + mongod_passthrough_args)
 
         arbiter_address = "localhost:#{port}"
       end
 
       write_config
 
-      initiate_replica_set(server_addresses, options[:replica_set], arbiter: arbiter_address)
+      initiate_replica_set(server_addresses, replica_set_name, arbiter: arbiter_address)
 
       puts("Waiting for replica set to initialize")
       client = Mongo::Client.new(["localhost:#{base_port}"],
         client_tls_options.merge(
-          replica_set: options[:replica_set], database: 'admin'))
+          replica_set: replica_set_name, database: 'admin'))
       client.database.command(ping: 1)
 
-      if options[:username]
-        create_user(client)
-        client.close
-
-        stop
-        start
-
-        client = Mongo::Client.new(["localhost:#{base_port}"],
-          client_tls_options.merge(
-            replica_set: options[:replica_set], database: 'admin',
-            user: options[:username], password: options[:password],
-          ),
-        )
-        client.database.command(ping: 1)
+      if block_given?
+        yield client
       end
 
       client.close
@@ -237,39 +254,66 @@ module MongoManager
     def init_sharded
       maybe_create_key
 
-      cs_dir = root_dir.join("csrs-#{base_port + num_mongos}")
+      if options[:replica_set]
+        num_sharded_nodes = num_shards * num_data_bearing_nodes
+        if options[:arbiter]
+          num_sharded_nodes += num_shards
+        end
+      else
+        num_sharded_nodes = num_shards
+      end
+
+      cs_dir = root_dir.join("csrs-#{base_port + num_mongos + num_sharded_nodes}")
 
       if options[:csrs] || server_version >= Gem::Version.new('3.4')
         spawn_replica_set_node(
           cs_dir,
-          base_port + num_mongos,
+          base_port + num_mongos + num_sharded_nodes,
           'csrs',
           common_args + %w(--configsvr) + config_server_passthrough_args,
         )
 
-        initiate_replica_set(%W(localhost:#{base_port+num_mongos}), 'csrs', config_server: true)
+        address = "localhost:#{base_port+num_mongos+num_sharded_nodes}"
+        initiate_replica_set([address], 'csrs', config_server: true)
 
-        config_db_opt = "csrs/localhost:#{base_port+num_mongos}"
+        config_db_opt = "csrs/#{address}"
       else
-        spawn_standalone(cs_dir, base_port + num_mongos,
+        spawn_standalone(cs_dir, base_port + num_mongos + num_sharded_nodes,
           common_args + %w(--configsvr) + config_server_passthrough_args)
 
-        config_db_opt = "localhost:#{base_port+num_mongos}"
+        config_db_opt = "localhost:#{base_port+num_mongos + num_sharded_nodes}"
       end
 
-      shard_base_port = base_port + num_mongos + 1
-
       1.upto(num_shards) do |shard|
-        shard_name = 'shard%02d' % shard
-        port = shard_base_port - 1 + shard
-        spawn_replica_set_node(
-          root_dir.join("#{shard_name}-#{port}"),
-          port,
-          shard_name,
-          common_args + %w(--shardsvr) + mongod_passthrough_args,
-        )
+        shard_base_port = base_port + num_mongos + shard - 1
+        if options[:replica_set]
+          do_init_rs(
+            base_port: shard_base_port,
+            dir_proc: lambda { |index, port| "shard#{shard}-rs#{'%02d' % index}-#{port}" },
+            arbiter_dir_proc: lambda { |port| "shard#{shard}-arbiter-#{port}" },
+            mongod_args: %w(--shardsvr),
+            replica_set_name: 'shard%02d' % shard,
+          )
+        elsif server_version >= Gem::Version.new('3.6')
+          # As of MongoDB 3.6, each shard must be a replica set.
+          shard_name = 'shard%02d' % shard
+          port = shard_base_port
+          spawn_replica_set_node(
+            root_dir.join("#{shard_name}-#{port}"),
+            port,
+            shard_name,
+            common_args + %w(--shardsvr) + mongod_passthrough_args,
+          )
 
-        initiate_replica_set(%W(localhost:#{port}), shard_name)
+          initiate_replica_set(%W(localhost:#{port}), shard_name)
+        else
+          shard_name = 'shard%02d' % shard
+          spawn_standalone(
+            root_dir.join("#{shard_name}-#{shard_base_port}"),
+            shard_base_port,
+            common_args + %w(--shardsvr) + mongod_passthrough_args,
+          )
+        end
       end
 
       1.upto(num_mongos) do |mongos|
@@ -294,23 +338,31 @@ module MongoManager
       client = Mongo::Client.new(["localhost:#{base_port}"],
         client_tls_options.merge(database: 'admin'))
       1.upto(num_shards) do |shard|
-        replica_set_name = "shard#{'%02d' % shard}"
-        host = "localhost:#{base_port+num_mongos+shard}"
-        # Old servers (e.g. 2.6) fail if the replica set is not waited for
-        # before trying to add it as a shard.
-        puts("Waiting for replica set at #{host}")
-        shard_client = Mongo::Client.new([host], client_tls_options.merge(
-          replica_set: replica_set_name))
-        begin
-          shard_client.database.command(ping: 1)
-        ensure
-          shard_client.close
+        if options[:replica_set] || server_version >= Gem::Version.new('3.6')
+          replica_set_name = "shard#{'%02d' % shard}"
+          host = "localhost:#{base_port+num_mongos+(shard-1)*num_data_bearing_nodes}"
+          # Old servers (e.g. 2.6) fail if the replica set is not waited for
+          # before trying to add it as a shard.
+          puts("Waiting for replica set at #{host}")
+          shard_client = Mongo::Client.new([host], client_tls_options.merge(
+            replica_set: replica_set_name))
+          begin
+            shard_client.database.command(ping: 1)
+          ensure
+            shard_client.close
+          end
+          shard_str = "#{replica_set_name}/#{host}"
+          puts("Adding shard #{shard_str}")
+          client.database.command(
+            addShard: shard_str,
+          )
+        else
+          host = "localhost:#{base_port+num_mongos+(shard-1)*num_data_bearing_nodes}"
+          puts("Adding shard #{host}")
+          client.database.command(
+            addShard: host,
+          )
         end
-        shard_str = "#{replica_set_name}/#{host}"
-        puts("Adding shard #{shard_str}")
-        client.database.command(
-          addShard: shard_str,
-        )
       end
 
       if options[:username]
@@ -441,10 +493,14 @@ module MongoManager
 
     def num_data_bearing_nodes
       options[:data_bearing_nodes] || begin
-        if options[:arbiter]
-          2
+        if options[:replica_set]
+          if options[:arbiter]
+            2
+          else
+            3
+          end
         else
-          3
+          1
         end
       end
     end

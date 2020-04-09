@@ -20,6 +20,13 @@ describe 'init' do
       it 'uses a standalone for config server' do
         executor.init
 
+        client = Mongo::Client.new(['localhost:27020'])
+        client.cluster.topology.class.name.should =~ /Single/
+      end
+
+      it 'uses a standalone for shard server' do
+        executor.init
+
         client = Mongo::Client.new(['localhost:27018'])
         client.cluster.topology.class.name.should =~ /Single/
       end
